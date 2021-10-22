@@ -1,4 +1,4 @@
-getwtxt-ng
+/getwtxt-ng
 *.log
 logs/
 local/
