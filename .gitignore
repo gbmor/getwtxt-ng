@@ -1,0 +1,6 @@
+getwtxt-ng
+*.log
+logs/
+local/
+*.db/
+*.db
