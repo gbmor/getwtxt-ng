@@ -19,27 +19,29 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+	"testing"
 
-	"github.com/ogier/pflag"
+	"golang.org/x/crypto/bcrypt"
 )
 
-var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config file")
-
-func main() {
-	pflag.Parse()
-	conf, err := readConfig(*flagConfig)
-	if err != nil {
-		fmt.Printf("Error loading configuration from %s: %s\n", *flagConfig, err)
-		os.Exit(1)
-	}
-	if err := conf.parse(); err != nil {
-		fmt.Printf("Config at %s has errors: %s\n", *flagConfig, err)
-		os.Exit(1)
-	}
-	log.SetOutput(conf.ServerConfig.MessageLogFd)
-	watchForInterrupt(conf)
-	fmt.Printf("%+v\n", conf)
+func TestHashPass(t *testing.T) {
+	t.Run("empty input", func(t *testing.T) {
+		out, err := HashPass("")
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if out != "" {
+			t.Errorf("Got %s, expected empty string", out)
+		}
+	})
+	t.Run("hash a password", func(t *testing.T) {
+		pass := "hunter2"
+		out, err := HashPass(pass)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(out), []byte(pass)); err != nil {
+			t.Error(err.Error())
+		}
+	})
 }

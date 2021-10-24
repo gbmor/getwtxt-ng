@@ -20,7 +20,6 @@ package main
 
 import (
 	"io"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -61,7 +60,7 @@ type InstanceConfig struct {
 	OwnerEmail      string `toml:"owner_email"`
 }
 
-func parseConfig(path string) (*Config, error) {
+func readConfig(path string) (*Config, error) {
 	fd, err := os.Open(path)
 	if err != nil {
 		return nil, xerrors.Errorf("can't open config file: %w", err)
@@ -75,35 +74,37 @@ func parseConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("can't parse config file as toml: %w", err)
 	}
-
-	if conf.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(conf.ServerConfig.AdminPassword) == "" {
-		return nil, xerrors.New("please set admin_password in the configuration file")
-	}
-	pHash, err := HashPass(conf.ServerConfig.AdminPassword)
-	if err != nil {
-		return nil, xerrors.Errorf("when hashing admin password: %w", err)
-	}
-	conf.ServerConfig.AdminPasswordHash = pHash
-	conf.ServerConfig.AdminPassword = ""
-
-	intervalParsed, err := time.ParseDuration(conf.ServerConfig.FetchIntervalStr)
-	if err != nil {
-		return nil, xerrors.Errorf("when parsing fetch interval: %w", err)
-	}
-	conf.ServerConfig.FetchInterval = intervalParsed
-
-	msgLogFd, err := os.OpenFile(conf.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, xerrors.Errorf("when opening message log file: %w", err)
-	}
-	conf.ServerConfig.MessageLogFd = msgLogFd
-	log.SetOutput(conf.ServerConfig.MessageLogFd)
-
-	reqLogFd, err := os.OpenFile(conf.ServerConfig.RequestLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, xerrors.Errorf("when opening request log file: %w", err)
-	}
-	conf.ServerConfig.RequestLogFd = reqLogFd
-
 	return &conf, nil
+}
+
+func (c *Config) parse() error {
+	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
+		return xerrors.New("please set admin_password in the configuration file")
+	}
+	pHash, err := HashPass(c.ServerConfig.AdminPassword)
+	if err != nil {
+		return xerrors.Errorf("when hashing admin password: %w", err)
+	}
+	c.ServerConfig.AdminPasswordHash = pHash
+	c.ServerConfig.AdminPassword = ""
+
+	intervalParsed, err := time.ParseDuration(c.ServerConfig.FetchIntervalStr)
+	if err != nil {
+		return xerrors.Errorf("when parsing fetch interval: %w", err)
+	}
+	c.ServerConfig.FetchInterval = intervalParsed
+
+	msgLogFd, err := os.OpenFile(c.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return xerrors.Errorf("when opening message log file: %w", err)
+	}
+	c.ServerConfig.MessageLogFd = msgLogFd
+
+	reqLogFd, err := os.OpenFile(c.ServerConfig.RequestLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return xerrors.Errorf("when opening request log file: %w", err)
+	}
+	c.ServerConfig.RequestLogFd = reqLogFd
+
+	return nil
 }
