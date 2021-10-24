@@ -19,21 +19,27 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
-
-	"github.com/ogier/pflag"
+	"os/signal"
 )
 
-var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config file")
+func watchForInterrupt(conf *Config) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-func main() {
-	pflag.Parse()
-	conf, err := parseConfig(*flagConfig)
-	if err != nil {
-		fmt.Printf("Error loading configuration from %s: %s\n", *flagConfig, err)
-		os.Exit(1)
-	}
-	watchForInterrupt(conf)
-	fmt.Printf("%+v\n", conf)
+	go func() {
+		for sigint := range c {
+			conf.mu.Lock()
+			log.Printf("Caught %v\n", sigint)
+			log.Println("Closing log files and switching to stderr")
+			if err := conf.ServerConfig.MessageLogFd.Close(); err != nil {
+				log.Printf("When closing message log: %s\n", err)
+			}
+			if err := conf.ServerConfig.RequestLogFd.Close(); err != nil {
+				log.Printf("When closing request log: %s\n", err)
+			}
+			os.Exit(130)
+		}
+	}()
 }

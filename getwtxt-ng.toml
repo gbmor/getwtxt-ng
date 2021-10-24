@@ -1,0 +1,19 @@
+# getwtxt-ng
+
+[server_config]
+admin_password = "please_change_me"
+bind_ip = "127.0.0.1"
+port = "9001"
+database_path = "getwtxt-ng.db"
+message_log = "message.log"
+request_log = "request.log"
+fetch_interval = "1h"
+assets_directory = "assets"
+static_files_directory = "static"
+
+[instance_info]
+site_name = "getwtxt-ng"
+site_url = "https://twtxt.example.com"
+site_description = "Anonymous Microblogger's twtxt registry!"
+owner_name = "Anonymous Microblogger"
+owner_email = "anonymousmicroblogger@example.com"

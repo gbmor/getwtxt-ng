@@ -18,22 +18,17 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 package main
 
-import (
-	"fmt"
-	"os"
+import "golang.org/x/crypto/bcrypt"
 
-	"github.com/ogier/pflag"
-)
-
-var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config file")
-
-func main() {
-	pflag.Parse()
-	conf, err := parseConfig(*flagConfig)
-	if err != nil {
-		fmt.Printf("Error loading configuration from %s: %s\n", *flagConfig, err)
-		os.Exit(1)
+// HashPass returns the bcrypt hash of the provided string.
+// If an empty string is provided, return an empty string.
+func HashPass(s string) (string, error) {
+	if s == "" {
+		return "", nil
 	}
-	watchForInterrupt(conf)
-	fmt.Printf("%+v\n", conf)
+	h, err := bcrypt.GenerateFromPassword([]byte(s), 14)
+	if err != nil {
+		return "", err
+	}
+	return string(h), nil
 }
