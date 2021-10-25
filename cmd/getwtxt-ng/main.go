@@ -21,8 +21,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
 )
 
@@ -41,5 +44,14 @@ func main() {
 	}
 	log.SetOutput(conf.ServerConfig.MessageLogFd)
 	watchForInterrupt(conf)
-	fmt.Printf("%+v\n", conf)
+
+	r := mux.NewRouter()
+	setUpRoutes(r, conf)
+	s := &http.Server{
+		Handler:      r,
+		Addr:         fmt.Sprintf("%s:%s", conf.ServerConfig.IP, conf.ServerConfig.Port),
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+	}
+	log.Println(s.ListenAndServe())
 }

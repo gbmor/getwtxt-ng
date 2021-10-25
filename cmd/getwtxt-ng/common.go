@@ -18,7 +18,14 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 package main
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"bytes"
+	"net/http"
+
+	"golang.org/x/crypto/bcrypt"
+)
+
+const MimePlain = "text/plain; charset=utf-8"
 
 // HashPass returns the bcrypt hash of the provided string.
 // If an empty string is provided, return an empty string.
@@ -31,4 +38,16 @@ func HashPass(s string) (string, error) {
 		return "", err
 	}
 	return string(h), nil
+}
+
+// HttpWriteLn writes a line to the provided http.ResponseWriter with an appended newline.
+// Sends the provided HTTP status code.
+func HttpWriteLn(in []byte, w http.ResponseWriter, code int, mime string) error {
+	if !bytes.HasSuffix(in, []byte("\n")) {
+		in = append(in, byte('\n'))
+	}
+	w.Header().Set("Content-Type", mime)
+	w.WriteHeader(code)
+	_, err := w.Write(in)
+	return err
 }
