@@ -22,24 +22,33 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
-func watchForInterrupt(conf *Config) {
+func signalWatcher(conf *Config) {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGHUP)
 
 	go func() {
-		for sigint := range c {
-			conf.mu.Lock()
-			log.Printf("Caught %v\n", sigint)
-			log.Println("Closing log files and switching to stderr")
-			if err := conf.ServerConfig.MessageLogFd.Close(); err != nil {
-				log.Printf("When closing message log: %s\n", err)
+		for sig := range c {
+			switch sig {
+			case syscall.SIGINT:
+				conf.mu.Lock()
+				log.Printf("Caught %s\n", sig)
+				log.Println("Closing log files and switching to stderr")
+				if err := conf.ServerConfig.MessageLogFd.Close(); err != nil {
+					log.Printf("When closing message log: %s\n", err)
+				}
+				if err := conf.ServerConfig.RequestLogFd.Close(); err != nil {
+					log.Printf("When closing request log: %s\n", err)
+				}
+				os.Exit(130)
+			case syscall.SIGHUP:
+				log.Printf("Caught %s: reloading configuration...\n", sig)
+				if err := conf.reload(*flagConfig); err != nil {
+					log.Println(err.Error())
+				}
 			}
-			if err := conf.ServerConfig.RequestLogFd.Close(); err != nil {
-				log.Printf("When closing request log: %s\n", err)
-			}
-			os.Exit(130)
 		}
 	}()
 }

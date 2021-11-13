@@ -1,5 +1,19 @@
 # getwtxt-ng
 
+# This file is reloaded on SIGHUP. However, only certain values are acknowledged on reload:
+#    admin_password
+#    message_log
+#    fetch_interval
+#    assets_directory
+#    static_files_directory
+#    site_name
+#    site_url
+#    site_description
+#    owner_name
+#    owner_email
+#
+# If any other configuration fields are changed, you must restart getwtxt-ng.
+
 [server_config]
 admin_password = "please_change_me"
 bind_ip = "127.0.0.1"

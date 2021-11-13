@@ -19,7 +19,8 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
-	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -60,12 +61,9 @@ type InstanceConfig struct {
 	OwnerEmail      string `toml:"owner_email"`
 }
 
+// Reads the config file directly into a *Config without doing any additional parsing.
 func readConfig(path string) (*Config, error) {
-	fd, err := os.Open(path)
-	if err != nil {
-		return nil, xerrors.Errorf("can't open config file: %w", err)
-	}
-	b, err := io.ReadAll(fd)
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, xerrors.Errorf("can't read contents of config file: %w", err)
 	}
@@ -77,6 +75,7 @@ func readConfig(path string) (*Config, error) {
 	return &conf, nil
 }
 
+// Open files, parse fetch interval, hash admin pass
 func (c *Config) parse() error {
 	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return xerrors.New("please set admin_password in the configuration file")
@@ -106,5 +105,51 @@ func (c *Config) parse() error {
 	}
 	c.ServerConfig.RequestLogFd = reqLogFd
 
+	return nil
+}
+
+// Reloads "safe" configuration options.
+// To be called on SIGHUP.
+func (c *Config) reload(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	newConf, err := readConfig(path)
+	if err != nil {
+		return xerrors.Errorf("while reloading config: %w", err)
+	}
+
+	if newConf.ServerConfig.MessageLogPath != c.ServerConfig.MessageLogPath {
+		msgLogFd, err := os.OpenFile(newConf.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			log.Printf("When opening new message log file on config reload: %s", err)
+		} else {
+			oldMsgLogFd := c.ServerConfig.MessageLogFd
+			c.ServerConfig.MessageLogFd = msgLogFd
+			c.ServerConfig.MessageLogPath = newConf.ServerConfig.MessageLogPath
+			log.SetOutput(c.ServerConfig.MessageLogFd)
+			if err := oldMsgLogFd.Close(); err != nil {
+				log.Printf("When closing old message log fd on config reload: %s", err)
+			}
+		}
+	}
+
+	adminPasswordHash, err := HashPass(newConf.ServerConfig.AdminPassword)
+	if err != nil {
+		log.Printf("Couldn't change admin password when reloading config: %s", err)
+	} else {
+		c.ServerConfig.AdminPasswordHash = adminPasswordHash
+	}
+	newConf.ServerConfig.AdminPassword = ""
+
+	fetchInterval, err := time.ParseDuration(newConf.ServerConfig.FetchIntervalStr)
+	if err != nil {
+		log.Printf("Couldn't parse new fetch interval when reloading config: %s", err)
+	} else {
+		c.ServerConfig.FetchInterval = fetchInterval
+	}
+
+	c.ServerConfig.AssetsDirectoryPath = newConf.ServerConfig.AssetsDirectoryPath
+	c.ServerConfig.StaticFilesDirectoryPath = newConf.ServerConfig.StaticFilesDirectoryPath
+	c.InstanceConfig = newConf.InstanceConfig
 	return nil
 }

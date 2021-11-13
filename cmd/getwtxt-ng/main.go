@@ -43,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 	log.SetOutput(conf.ServerConfig.MessageLogFd)
-	watchForInterrupt(conf)
+	signalWatcher(conf)
 
 	r := mux.NewRouter()
 	setUpRoutes(r, conf)
