@@ -202,3 +202,56 @@ func TestConfig_parse(t *testing.T) {
 		}
 	})
 }
+
+func TestConfig_reload(t *testing.T) {
+	t.Run("fail to open config file", func(t *testing.T) {
+		b := make([]byte, 8)
+		rand.Read(b)
+		fnPath := fmt.Sprintf("%s/%x", os.TempDir(), b)
+		oldConf := &Config{}
+		if err := oldConf.reload(fnPath); !strings.Contains(err.Error(), "while reloading config") {
+			t.Errorf("Expected error opening file, got %s", err)
+		}
+	})
+	t.Run("complete with soft fails", func(t *testing.T) {
+		oldConf := &Config{
+			ServerConfig: ServerConfig{
+				MessageLogPath: "/tmp/foo",
+			},
+		}
+		fd, err := os.CreateTemp(os.TempDir(), "getwtxt-ng-test-config")
+		if err != nil {
+			t.Errorf("When creating temp file: %s", err)
+		}
+		tmpFilePath := fd.Name()
+		defer os.Remove(tmpFilePath)
+		contents := "[server_config]\nbind_ip = \"127.0.0.1\""
+		fd.Write([]byte(contents))
+		fd.Close()
+		if err := oldConf.reload(tmpFilePath); err != nil {
+			t.Error(err.Error())
+		}
+	})
+	t.Run("complete", func(t *testing.T) {
+		oldConf := &Config{
+			ServerConfig: ServerConfig{
+				MessageLogPath: "/tmp/foo",
+			},
+		}
+		fd, err := os.CreateTemp(os.TempDir(), "getwtxt-ng-test-config")
+		if err != nil {
+			t.Errorf("When creating temp file: %s", err)
+		}
+		tmpFilePath := fd.Name()
+		defer os.Remove(tmpFilePath)
+		contents := `[server_config]
+						bind_ip = "127.0.0.1"
+						message_log = "message.log"
+						fetch_interval = "1h"`
+		fd.Write([]byte(contents))
+		fd.Close()
+		if err := oldConf.reload(tmpFilePath); err != nil {
+			t.Error(err.Error())
+		}
+	})
+}
