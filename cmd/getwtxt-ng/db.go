@@ -20,12 +20,31 @@ package main
 
 import (
 	"database/sql"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/xerrors"
 )
 
-func initDB(dbPath string) (*sql.DB, error) {
+type User struct {
+	ID            string    `json:"id"`
+	URL           string    `json:"url"`
+	Nick          string    `json:"nick"`
+	DateTimeAdded time.Time `json:"datetime_added"`
+}
+
+type Tweet struct {
+	ID       string    `json:"id"`
+	UserID   string    `json:"user_id"`
+	DateTime time.Time `json:"datetime"`
+	Body     string    `json:"body"`
+}
+
+type DB struct {
+	*sql.DB
+}
+
+func initDB(dbPath string) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
@@ -39,7 +58,7 @@ func initDB(dbPath string) (*sql.DB, error) {
 )`
 	_, err = db.Exec(createUserTableStr)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, xerrors.Errorf("while creating users table at %s :: %w", dbPath, err)
 	}
 
@@ -48,13 +67,29 @@ func initDB(dbPath string) (*sql.DB, error) {
     	user_id INTEGER NOT NULL,
     	dt INTEGER NOT NULL,
     	body TEXT NOT NULL,
-    	body_hash TEXT NOT NULL UNIQUE
+    	body_hash TEXT NOT NULL,
+    	UNIQUE (user_id, dt, body) ON CONFLICT IGNORE
 )`
 	_, err = db.Exec(createTweetsTableStr)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, xerrors.Errorf("while creating tweets table at %s :: %w", dbPath, err)
 	}
 
-	return db, nil
+	return &DB{db}, nil
+}
+
+func (d *DB) InsertUser(u *User) error {
+	if u == nil || u.URL == "" || u.Nick == "" {
+		return xerrors.New("incomplete user info supplied: missing URL and/or nickname")
+	}
+	tx, err := d.Begin()
+	if err != nil {
+		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added) VALUES(?,?,?)", u.URL, u.Nick, time.Now().UTC().Unix()); err != nil {
+		return xerrors.Errorf("when inserting user to DB: %w", err)
+	}
+	return tx.Commit()
 }
