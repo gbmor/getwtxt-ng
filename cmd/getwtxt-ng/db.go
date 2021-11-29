@@ -33,6 +33,7 @@ type User struct {
 	URL           string    `json:"url"`
 	Nick          string    `json:"nick"`
 	DateTimeAdded time.Time `json:"datetime_added"`
+	LastSync      time.Time `json:"last_sync"`
 }
 
 type Tweet struct {
@@ -56,7 +57,8 @@ func initDB(dbPath string) (*DB, error) {
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
     	url TEXT NOT NULL UNIQUE,
     	nick TEXT NOT NULL,
-    	dt_added INTEGER NOT NULL
+    	dt_added INTEGER NOT NULL,
+    	last_sync INTEGER NOT NULL
 )`
 	_, err = db.Exec(createUserTableStr)
 	if err != nil {
@@ -69,7 +71,6 @@ func initDB(dbPath string) (*DB, error) {
     	user_id INTEGER NOT NULL,
     	dt INTEGER NOT NULL,
     	body TEXT NOT NULL,
-    	body_hash TEXT NOT NULL,
     	UNIQUE (user_id, dt, body) ON CONFLICT IGNORE
 )`
 	_, err = db.Exec(createTweetsTableStr)
@@ -89,12 +90,14 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	}
 	user := User{}
 	dtRaw := int64(0)
+	lsRaw := int64(0)
 	stmt := "SELECT * FROM users WHERE url = ?"
-	err := d.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw)
+	err := d.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw, &lsRaw)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
 	user.DateTimeAdded = time.Unix(dtRaw, 0)
+	user.LastSync = time.Unix(lsRaw, 0)
 	return &user, nil
 }
 
@@ -109,7 +112,7 @@ func (d *DB) InsertUser(u *User) error {
 		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added) VALUES(?,?,?)", u.URL, u.Nick, time.Now().UTC().Unix()); err != nil {
+	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, time.Now().UTC().Unix()); err != nil {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}
 	return tx.Commit()
