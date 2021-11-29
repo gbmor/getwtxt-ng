@@ -20,6 +20,8 @@ package main
 
 import (
 	"database/sql"
+	"log"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -79,6 +81,25 @@ func initDB(dbPath string) (*DB, error) {
 	return &DB{db}, nil
 }
 
+// GetUserByURL returns the user's entire row from the database.
+func (d *DB) GetUserByURL(userURL string) (*User, error) {
+	userURL = strings.TrimSpace(userURL)
+	if userURL == "" {
+		return nil, xerrors.New("empty user URL provided")
+	}
+	user := User{}
+	dtRaw := int64(0)
+	stmt := "SELECT * FROM users WHERE url = ?"
+	err := d.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
+	}
+	user.DateTimeAdded = time.Unix(dtRaw, 0)
+	return &user, nil
+}
+
+// InsertUser adds a user to the database.
+// The ID field of the provided *User is ignored.
 func (d *DB) InsertUser(u *User) error {
 	if u == nil || u.URL == "" || u.Nick == "" {
 		return xerrors.New("incomplete user info supplied: missing URL and/or nickname")
@@ -92,4 +113,38 @@ func (d *DB) InsertUser(u *User) error {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}
 	return tx.Commit()
+}
+
+// DeleteUser removes a user and their tweets. Returns the number of tweets deleted.
+func (d *DB) DeleteUser(u *User) (int64, error) {
+	if u == nil || u.ID == "" {
+		return 0, xerrors.New("invalid *User provided")
+	}
+
+	tx, err := d.Begin()
+	if err != nil {
+		return 0, xerrors.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
+	}
+	defer tx.Rollback()
+
+	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
+	res, err := tx.Exec(delTweetsStmt, u.ID)
+	if err != nil {
+		return 0, err
+	}
+	delUserStmt := "DELETE FROM users WHERE id = ?"
+	_, err = tx.Exec(delUserStmt, u.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, xerrors.Errorf("when committing tx to delete user %s: %w", u.URL, err)
+	}
+
+	tweetsRemoved, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("When getting number of tweets deleted when removing user %s: %s", u.URL, err)
+	}
+	return tweetsRemoved, nil
 }
