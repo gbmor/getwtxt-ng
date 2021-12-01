@@ -135,3 +135,43 @@ func TestInitDB(t *testing.T) {
 		}
 	})
 }
+
+func TestDB_GetUserByURL(t *testing.T) {
+	t.Run("invalid user URL", func(t *testing.T) {
+		db := DB{}
+		_, err := db.GetUserByURL("    ")
+		if err == nil {
+			t.Error("expected error, got nil")
+			return
+		}
+		if !strings.Contains(err.Error(), "empty user URL provided") {
+			t.Errorf("expected empty URL error, got: %s", err)
+		}
+	})
+	t.Run("couldn't retrieve user", func(t *testing.T) {
+		mockDB, mock := getDBMocker(t)
+		mock.ExpectQuery("SELECT (.+) FROM users WHERE url = ?").
+			WithArgs("https://example.net/twtxt.txt").
+			WillReturnError(sql.ErrNoRows)
+		_, err := mockDB.GetUserByURL("https://example.net/twtxt.txt")
+		if !xerrors.Is(err, sql.ErrNoRows) {
+			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
+		}
+	})
+	t.Run("get a user successfully", func(t *testing.T) {
+		memDB := getPopulatedDB(t)
+		defer func() {
+			if err := memDB.conn.Close(); err != nil {
+				t.Error(err.Error())
+			}
+		}()
+
+		out, err := memDB.GetUserByURL("https://example.com/twtxt.txt")
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if out.Nick != "foobar" {
+			t.Errorf("Expected nick 'foobar', got '%s'", out.Nick)
+		}
+	})
+}
