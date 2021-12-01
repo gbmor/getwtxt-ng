@@ -83,7 +83,8 @@ func InitDB(dbPath string) (*DB, error) {
     	dt INTEGER NOT NULL,
     	body TEXT NOT NULL,
     	hidden INTEGER NOT NULL DEFAULT 0,
-    	UNIQUE (user_id, dt, body) ON CONFLICT IGNORE
+    	UNIQUE (user_id, dt, body) ON CONFLICT IGNORE,
+    	FOREIGN KEY(user_id) REFERENCES users(id)
 )`
 	_, err = db.Exec(createTweetsTableStr)
 	if err != nil {
