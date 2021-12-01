@@ -21,10 +21,12 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/gbmor/getwtxt-ng/common"
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config) {
-	if err := HttpWriteLn([]byte("200 OK"), w, http.StatusOK, MimePlain); err != nil {
+	if err := common.HttpWriteLn([]byte("200 OK"), w, http.StatusOK, common.MimePlain); err != nil {
 		log.Printf("When writing to HTTP: %s\n", err)
 	}
 }

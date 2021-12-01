@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gbmor/getwtxt-ng/common"
 	"golang.org/x/xerrors"
 )
 
@@ -80,7 +81,7 @@ func (c *Config) parse() error {
 	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return xerrors.New("please set admin_password in the configuration file")
 	}
-	pHash, err := HashPass(c.ServerConfig.AdminPassword)
+	pHash, err := common.HashPass(c.ServerConfig.AdminPassword)
 	if err != nil {
 		return xerrors.Errorf("when hashing admin password: %w", err)
 	}
@@ -133,7 +134,7 @@ func (c *Config) reload(path string) error {
 		}
 	}
 
-	adminPasswordHash, err := HashPass(newConf.ServerConfig.AdminPassword)
+	adminPasswordHash, err := common.HashPass(newConf.ServerConfig.AdminPassword)
 	if err != nil {
 		log.Printf("Couldn't change admin password when reloading config: %s", err)
 	} else {
