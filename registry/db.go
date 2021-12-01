@@ -1,3 +1,6 @@
+// Package registry implements a SQLite3 twtxt registry back-end.
+package registry
+
 /*
 Copyright 2021 G. Benjamin Morrison
 
@@ -16,7 +19,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
-package main
 
 import (
 	"database/sql"
@@ -45,17 +47,18 @@ type Tweet struct {
 }
 
 type DB struct {
-	*sql.DB
+	conn *sql.DB
 }
 
-type TweetHiddenStatus int
+type TweetVisibilityStatus int
 
 const (
-	StatusVisible TweetHiddenStatus = iota
+	StatusVisible TweetVisibilityStatus = 2 << iota
 	StatusHidden
 )
 
-func initDB(dbPath string) (*DB, error) {
+// InitDB initializes the registry's database, creating the appropriate tables if needed.
+func InitDB(dbPath string) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
@@ -88,7 +91,7 @@ func initDB(dbPath string) (*DB, error) {
 		return nil, xerrors.Errorf("while creating tweets table at %s :: %w", dbPath, err)
 	}
 
-	return &DB{db}, nil
+	return &DB{conn: db}, nil
 }
 
 // GetUserByURL returns the user's entire row from the database.
@@ -101,7 +104,7 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	dtRaw := int64(0)
 	lsRaw := int64(0)
 	stmt := "SELECT * FROM users WHERE url = ?"
-	err := d.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw, &lsRaw)
+	err := d.conn.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw, &lsRaw)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
@@ -119,7 +122,7 @@ func (d *DB) InsertUser(u *User) error {
 	if u.DateTimeAdded.IsZero() {
 		u.DateTimeAdded = time.Now().UTC()
 	}
-	tx, err := d.Begin()
+	tx, err := d.conn.Begin()
 	if err != nil {
 		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
 	}
@@ -140,7 +143,7 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 		return 0, xerrors.New("invalid user provided")
 	}
 
-	tx, err := d.Begin()
+	tx, err := d.conn.Begin()
 	if err != nil {
 		return 0, xerrors.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
 	}
@@ -178,7 +181,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 		return xerrors.New("invalid tweets provided")
 	}
 
-	tx, err := d.Begin()
+	tx, err := d.conn.Begin()
 	if err != nil {
 		return xerrors.Errorf("when beginning tx to insert tweets: %w", err)
 	}
@@ -206,12 +209,12 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 }
 
 // ToggleTweetHiddenStatus changes the provided tweet's hidden status.
-func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status TweetHiddenStatus) error {
+func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status TweetVisibilityStatus) error {
 	if userID == "" || timestamp.IsZero() {
 		return xerrors.New("invalid user ID or tweet timestamp provided")
 	}
 
-	tx, err := d.Begin()
+	tx, err := d.conn.Begin()
 	if err != nil {
 		return xerrors.Errorf("when beginning tx to hide tweet by %s at %s: %w", userID, timestamp, err)
 	}

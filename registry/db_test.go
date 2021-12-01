@@ -1,3 +1,5 @@
+package registry
+
 /*
 Copyright 2021 G. Benjamin Morrison
 
@@ -16,7 +18,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
-package main
 
 import (
 	"database/sql"
@@ -36,13 +37,13 @@ func getDBMocker(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	return dbConn, mock
 }
 
-func Test_initDB(t *testing.T) {
+func TestInitDB(t *testing.T) {
 	t.Run("in-memory, check for tables", func(t *testing.T) {
-		db, err := initDB(":memory:")
+		db, err := InitDB(":memory:")
 		if err != nil {
 			t.Error(err.Error())
 		}
-		rows, err := db.Query("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+		rows, err := db.conn.Query("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
 		if err != nil {
 			t.Error(err.Error())
 		}
