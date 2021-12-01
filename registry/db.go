@@ -199,9 +199,6 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 
 	for _, t := range tweets {
 		if _, err := stmt.Exec(t.UserID, t.DateTime, t.Body); err != nil {
-			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-				continue
-			}
 			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
