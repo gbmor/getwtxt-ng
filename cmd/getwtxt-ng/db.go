@@ -41,11 +41,19 @@ type Tweet struct {
 	UserID   string    `json:"user_id"`
 	DateTime time.Time `json:"datetime"`
 	Body     string    `json:"body"`
+	Hidden   int       `json:"hidden"`
 }
 
 type DB struct {
 	*sql.DB
 }
+
+type TweetHiddenStatus int
+
+const (
+	StatusVisible TweetHiddenStatus = iota
+	StatusHidden
+)
 
 func initDB(dbPath string) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
@@ -71,6 +79,7 @@ func initDB(dbPath string) (*DB, error) {
     	user_id INTEGER NOT NULL,
     	dt INTEGER NOT NULL,
     	body TEXT NOT NULL,
+    	hidden INTEGER NOT NULL DEFAULT 0,
     	UNIQUE (user_id, dt, body) ON CONFLICT IGNORE
 )`
 	_, err = db.Exec(createTweetsTableStr)
@@ -128,7 +137,7 @@ func (d *DB) InsertUser(u *User) error {
 // DeleteUser removes a user and their tweets. Returns the number of tweets deleted.
 func (d *DB) DeleteUser(u *User) (int64, error) {
 	if u == nil || u.ID == "" {
-		return 0, xerrors.New("invalid *User provided")
+		return 0, xerrors.New("invalid user provided")
 	}
 
 	tx, err := d.Begin()
@@ -161,4 +170,60 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 		log.Printf("When getting number of tweets deleted when removing user %s: %s", u.URL, err)
 	}
 	return tweetsRemoved, nil
+}
+
+// InsertTweets adds a collection of tweets to the database.
+func (d *DB) InsertTweets(tweets []Tweet) error {
+	if len(tweets) == 0 {
+		return xerrors.New("invalid tweets provided")
+	}
+
+	tx, err := d.Begin()
+	if err != nil {
+		return xerrors.Errorf("when beginning tx to insert tweets: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("When rolling back tx that attempted to insert tweets: %s", err)
+		}
+	}()
+
+	insertStmt := "INSERT INTO tweets (user_id, dt, body) VALUES(?,?,?)"
+	stmt, err := tx.Prepare(insertStmt)
+	if err != nil {
+		return xerrors.Errorf("could not prepare statement to insert tweets: %w", err)
+	}
+
+	for _, t := range tweets {
+		if _, err := stmt.Exec(t.UserID, t.DateTime, t.Body); err != nil {
+			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+				continue
+			}
+			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
+		}
+	}
+	return tx.Commit()
+}
+
+// ToggleTweetHiddenStatus changes the provided tweet's hidden status.
+func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status TweetHiddenStatus) error {
+	if userID == "" || timestamp.IsZero() {
+		return xerrors.New("invalid user ID or tweet timestamp provided")
+	}
+
+	tx, err := d.Begin()
+	if err != nil {
+		return xerrors.Errorf("when beginning tx to hide tweet by %s at %s: %w", userID, timestamp, err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("When rolling back tx that attempted to hide tweet by %s at %s: %s", userID, timestamp, err)
+		}
+	}()
+
+	hideStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
+	if _, err := tx.Exec(hideStmt, status, userID, timestamp.Unix()); err != nil {
+		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
+	}
+	return tx.Commit()
 }
