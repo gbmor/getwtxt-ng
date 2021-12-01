@@ -18,7 +18,23 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 package main
 
-import "testing"
+import (
+	"database/sql"
+	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+)
+
+// getDBMocker gives us the SQL DB mocker.
+// We can then induce error conditions easily in tests.
+// Use an in-memory SQLite DB when the data is important.
+func getDBMocker(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+	dbConn, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	return dbConn, mock
+}
 
 func Test_initDB(t *testing.T) {
 	t.Run("in-memory, check for tables", func(t *testing.T) {
