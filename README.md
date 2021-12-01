@@ -2,6 +2,8 @@
 
 ### twtxt registry
 
+This is not ready for production use yet.
+
 [twtxt](https://github.com/buckket/twtxt) is a decentralized microblogging platform
 for hackers based on text files. The user is "followed" and "mentioned" by referencing
 the URL to their `twtxt.txt` file and a nickname.
