@@ -107,12 +107,19 @@ func (d *DB) InsertUser(u *User) error {
 	if u == nil || u.URL == "" || u.Nick == "" {
 		return xerrors.New("incomplete user info supplied: missing URL and/or nickname")
 	}
+	if u.DateTimeAdded.IsZero() {
+		u.DateTimeAdded = time.Now().UTC()
+	}
 	tx, err := d.Begin()
 	if err != nil {
 		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
 	}
-	defer tx.Rollback()
-	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, time.Now().UTC().Unix()); err != nil {
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("When rolling back tx that attempted to add user %s: %s", u.URL, err)
+		}
+	}()
+	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.Unix()); err != nil {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}
 	return tx.Commit()
@@ -128,7 +135,11 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 	if err != nil {
 		return 0, xerrors.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("When rolling back tx that attempted to delete user %s: %s", u.URL, err)
+		}
+	}()
 
 	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
 	res, err := tx.Exec(delTweetsStmt, u.ID)

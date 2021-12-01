@@ -49,8 +49,8 @@ func Test_readConfig(t *testing.T) {
 		}
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
-		fd.Write([]byte("invalid config file here"))
-		fd.Close()
+		_, _ = fd.Write([]byte("invalid config file here"))
+		_ = fd.Close()
 		_, err = readConfig(tmpFilePath)
 		if err == nil {
 			t.Errorf("Expected error when opening %s", tmpFilePath)
@@ -67,8 +67,8 @@ func Test_readConfig(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := "[server_config]\nbind_ip = \"127.0.0.1\""
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -88,8 +88,8 @@ func TestConfig_parse(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := "[server_config]\nbind_ip = \"127.0.0.1\""
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -107,8 +107,8 @@ func TestConfig_parse(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := "[server_config]\nadmin_password = \"hunter2\"\nfetch_interval = \"3kg\""
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -132,8 +132,8 @@ func TestConfig_parse(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := fmt.Sprintf("[server_config]\nadmin_password = \"hunter2\"\nfetch_interval = \"1h\"\nrequest_log = \"%s\"", reqLogPath)
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -158,8 +158,8 @@ func TestConfig_parse(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := fmt.Sprintf("[server_config]\nadmin_password = \"hunter2\"\nfetch_interval = \"1h\"\nmessage_log = \"%s\"", msgLogPath)
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -191,8 +191,8 @@ func TestConfig_parse(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := fmt.Sprintf("[server_config]\nadmin_password = \"hunter2\"\nfetch_interval = \"1h\"\nmessage_log = \"%s\"\nrequest_log = \"%s\"", msgLogPath, reqLogPath)
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)
 		if err != nil {
 			t.Error(err.Error())
@@ -206,7 +206,10 @@ func TestConfig_parse(t *testing.T) {
 func TestConfig_reload(t *testing.T) {
 	t.Run("fail to open config file", func(t *testing.T) {
 		b := make([]byte, 8)
-		rand.Read(b)
+		_, err := rand.Read(b)
+		if err != nil {
+			t.Error(err.Error())
+		}
 		fnPath := fmt.Sprintf("%s/%x", os.TempDir(), b)
 		oldConf := &Config{}
 		if err := oldConf.reload(fnPath); !strings.Contains(err.Error(), "while reloading config") {
@@ -226,8 +229,8 @@ func TestConfig_reload(t *testing.T) {
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
 		contents := "[server_config]\nbind_ip = \"127.0.0.1\""
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		if err := oldConf.reload(tmpFilePath); err != nil {
 			t.Error(err.Error())
 		}
@@ -248,8 +251,8 @@ func TestConfig_reload(t *testing.T) {
 						bind_ip = "127.0.0.1"
 						message_log = "message.log"
 						fetch_interval = "1h"`
-		fd.Write([]byte(contents))
-		fd.Close()
+		_, _ = fd.Write([]byte(contents))
+		_ = fd.Close()
 		if err := oldConf.reload(tmpFilePath); err != nil {
 			t.Error(err.Error())
 		}
