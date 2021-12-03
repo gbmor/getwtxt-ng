@@ -55,8 +55,8 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
 
-	user.DateTimeAdded = time.Unix(dtRaw, 0)
-	user.LastSync = time.Unix(lsRaw, 0)
+	user.DateTimeAdded = time.Unix(0, dtRaw)
+	user.LastSync = time.Unix(0, lsRaw)
 
 	return &user, nil
 }
@@ -79,7 +79,7 @@ func (d *DB) InsertUser(u *User) error {
 		_ = tx.Rollback()
 	}()
 
-	_, err = tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.Unix())
+	_, err = tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.UnixNano())
 	if err != nil {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}

@@ -89,7 +89,7 @@ func getPopulatedDB(t *testing.T) *DB {
 
 	usersStmt := "INSERT INTO users (id, url, nick, dt_added, last_sync) VALUES (?,?,?,?,?)"
 	for _, u := range populatedDBUsers {
-		if _, err := db.conn.Exec(usersStmt, u.ID, u.URL, u.Nick, u.DateTimeAdded.Unix(), u.LastSync.Unix()); err != nil {
+		if _, err := db.conn.Exec(usersStmt, u.ID, u.URL, u.Nick, u.DateTimeAdded.UnixNano(), u.LastSync.UnixNano()); err != nil {
 			_ = db.conn.Close()
 			t.Fatal(err.Error())
 			return nil
@@ -98,7 +98,7 @@ func getPopulatedDB(t *testing.T) *DB {
 
 	tweetsStmt := "INSERT INTO tweets (id, user_id, dt, body, hidden) VALUES (?,?,?,?,?)"
 	for _, tw := range populatedDBTweets {
-		if _, err := db.conn.Exec(tweetsStmt, tw.ID, tw.UserID, tw.DateTime.Unix(), tw.Body, tw.Hidden); err != nil {
+		if _, err := db.conn.Exec(tweetsStmt, tw.ID, tw.UserID, tw.DateTime.UnixNano(), tw.Body, tw.Hidden); err != nil {
 			_ = db.conn.Close()
 			t.Fatal(err.Error())
 			return nil
@@ -124,6 +124,9 @@ func TestInitDB(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
+		defer func() {
+			_ = rows.Close()
+		}()
 		tables := make([]string, 0)
 		for rows.Next() {
 			tbl := ""

@@ -66,7 +66,7 @@ func TestDB_InsertTweets(t *testing.T) {
 		mock.ExpectBegin()
 		stmt := mock.ExpectPrepare(insertStmt)
 		stmt.ExpectExec().
-			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.Unix(), populatedDBTweets[0].Body).
+			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.UnixNano(), populatedDBTweets[0].Body).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertTweets(populatedDBTweets)
@@ -134,7 +134,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 	t.Run("fail to toggle status", func(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(toggleStmt).
-			WithArgs(StatusHidden, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime.Unix()).
+			WithArgs(StatusHidden, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime.UnixNano()).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.ToggleTweetHiddenStatus(populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
@@ -175,7 +175,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 				if err != nil {
 					t.Error(err.Error())
 				}
-				thisTweet.DateTime = time.Unix(dt, 0)
+				thisTweet.DateTime = time.Unix(0, dt)
 				log.Printf("%#v\n", thisTweet)
 			}
 		}

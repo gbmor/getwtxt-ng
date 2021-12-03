@@ -64,7 +64,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 	}
 
 	for _, t := range tweets {
-		if _, err := stmt.Exec(t.UserID, t.DateTime.Unix(), t.Body); err != nil {
+		if _, err := stmt.Exec(t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
 			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
@@ -87,7 +87,7 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 	}()
 
 	toggleStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
-	if _, err := tx.Exec(toggleStmt, status, userID, timestamp.Unix()); err != nil {
+	if _, err := tx.Exec(toggleStmt, status, userID, timestamp.UnixNano()); err != nil {
 		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
 
@@ -126,7 +126,7 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 			log.Printf("when querying for tweets %d - %d: %s", idFloor+1, idCeil+1, err)
 			continue
 		}
-		thisTweet.DateTime = time.Unix(dt, 0)
+		thisTweet.DateTime = time.Unix(0, dt)
 		tweets = append(tweets, thisTweet)
 	}
 
