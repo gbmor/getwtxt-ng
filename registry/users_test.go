@@ -244,3 +244,48 @@ func TestDB_DeleteUser(t *testing.T) {
 		t.Error(err.Error())
 	}
 }
+
+func TestDB_GetUsers(t *testing.T) {
+	memDB := getPopulatedDB(t)
+	mockDB, mock := getDBMocker(t)
+	userStmt := "SELECT * FROM users WHERE id > ? AND id < ? ORDER BY dt_added DESC"
+
+	t.Run("error on query", func(t *testing.T) {
+		mock.ExpectQuery(userStmt).
+			WithArgs(0, 20).
+			WillReturnError(sql.ErrNoRows)
+		_, err := mockDB.GetUsers(-1, 2)
+		if !xerrors.Is(err, sql.ErrNoRows) {
+			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
+		}
+	})
+
+	t.Run("fail to scan", func(t *testing.T) {
+		mock.ExpectQuery(userStmt).
+			WithArgs(0, 1000).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id", "url", "nick", "dt_added", "last_sync"}).
+					AddRow("1", "https://example.com", "foobar", "thirty five o'clock", "sync time"))
+		out, err := mockDB.GetUsers(0, 2000)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) > 0 {
+			t.Errorf("Got %d users, expected zero", len(out))
+		}
+	})
+
+	t.Run("get users", func(t *testing.T) {
+		out, err := memDB.GetUsers(0, 20)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) != len(populatedDBUsers) {
+			t.Errorf("Expected %d tweets, got %d", len(populatedDBUsers), len(out))
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf(err.Error())
+	}
+}

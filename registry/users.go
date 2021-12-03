@@ -124,3 +124,44 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 
 	return tweetsRemoved, nil
 }
+
+// GetUsers gets a page's worth of users.
+func (d *DB) GetUsers(page, perPage int) ([]User, error) {
+	if perPage < 20 {
+		perPage = 20
+	}
+	if perPage > 1000 {
+		perPage = 1000
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	userStmt := "SELECT * FROM users WHERE id > ? AND id < ? ORDER BY dt_added DESC"
+	rows, err := d.conn.Query(userStmt, idFloor, idCeil)
+	if err != nil {
+		return nil, xerrors.Errorf("when querying for users %d - %d: %w", idFloor+1, idCeil+1, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	users := make([]User, 0)
+	for rows.Next() {
+		dt := int64(0)
+		ls := int64(0)
+		thisUser := User{}
+		err := rows.Scan(&thisUser.ID, &thisUser.URL, &thisUser.Nick, &dt, &ls)
+		if err != nil {
+			log.Printf("when querying for users %d - %d: %s", idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisUser.DateTimeAdded = time.Unix(0, dt)
+		thisUser.LastSync = time.Unix(0, ls)
+		users = append(users, thisUser)
+	}
+
+	return users, nil
+}
