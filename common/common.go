@@ -39,6 +39,7 @@ func HashPass(s string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(h), nil
 }
 
@@ -51,5 +52,6 @@ func HttpWriteLn(in []byte, w http.ResponseWriter, code int, mime string) error 
 	w.Header().Set("Content-Type", mime)
 	w.WriteHeader(code)
 	_, err := w.Write(in)
+
 	return err
 }

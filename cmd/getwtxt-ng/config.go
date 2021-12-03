@@ -81,6 +81,7 @@ func (c *Config) parse() error {
 	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return xerrors.New("please set admin_password in the configuration file")
 	}
+
 	pHash, err := common.HashPass(c.ServerConfig.AdminPassword)
 	if err != nil {
 		return xerrors.Errorf("when hashing admin password: %w", err)
@@ -152,5 +153,6 @@ func (c *Config) reload(path string) error {
 	c.ServerConfig.AssetsDirectoryPath = newConf.ServerConfig.AssetsDirectoryPath
 	c.ServerConfig.StaticFilesDirectoryPath = newConf.ServerConfig.StaticFilesDirectoryPath
 	c.InstanceConfig = newConf.InstanceConfig
+
 	return nil
 }

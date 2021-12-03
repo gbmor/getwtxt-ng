@@ -101,16 +101,20 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	if userURL == "" {
 		return nil, xerrors.New("empty user URL provided")
 	}
+
 	user := User{}
 	dtRaw := int64(0)
 	lsRaw := int64(0)
+
 	stmt := "SELECT * FROM users WHERE url = ?"
 	err := d.conn.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw, &lsRaw)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
+
 	user.DateTimeAdded = time.Unix(dtRaw, 0)
 	user.LastSync = time.Unix(lsRaw, 0)
+
 	return &user, nil
 }
 
@@ -123,6 +127,7 @@ func (d *DB) InsertUser(u *User) error {
 	if u.DateTimeAdded.IsZero() {
 		u.DateTimeAdded = time.Now().UTC()
 	}
+
 	tx, err := d.conn.Begin()
 	if err != nil {
 		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
@@ -132,9 +137,12 @@ func (d *DB) InsertUser(u *User) error {
 			log.Printf("When rolling back tx that attempted to add user %s: %s", u.URL, err)
 		}
 	}()
-	if _, err := tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.Unix()); err != nil {
+
+	_, err = tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.Unix())
+	if err != nil {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}
+
 	return tx.Commit()
 }
 
@@ -159,6 +167,7 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	delUserStmt := "DELETE FROM users WHERE id = ?"
 	_, err = tx.Exec(delUserStmt, u.ID)
 	if err != nil {
@@ -173,6 +182,7 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 	if err != nil {
 		log.Printf("When getting number of tweets deleted when removing user %s: %s", u.URL, err)
 	}
+
 	return tweetsRemoved, nil
 }
 
@@ -203,6 +213,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
+
 	return tx.Commit()
 }
 
@@ -226,5 +237,6 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 	if _, err := tx.Exec(hideStmt, status, userID, timestamp.Unix()); err != nil {
 		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
+
 	return tx.Commit()
 }

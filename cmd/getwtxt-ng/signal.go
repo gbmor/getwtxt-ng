@@ -36,13 +36,17 @@ func signalWatcher(conf *Config) {
 				conf.mu.Lock()
 				log.Printf("Caught %s\n", sig)
 				log.Println("Closing log files and switching to stderr")
+				log.SetOutput(os.Stderr)
+
 				if err := conf.ServerConfig.MessageLogFd.Close(); err != nil {
 					log.Printf("When closing message log: %s\n", err)
 				}
 				if err := conf.ServerConfig.RequestLogFd.Close(); err != nil {
 					log.Printf("When closing request log: %s\n", err)
 				}
+
 				os.Exit(130)
+
 			case syscall.SIGHUP:
 				log.Printf("Caught %s: reloading configuration...\n", sig)
 				if err := conf.reload(*flagConfig); err != nil {

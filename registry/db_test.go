@@ -77,6 +77,7 @@ func getDBMocker(t *testing.T) (*DB, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
 	return &DB{conn: dbConn}, mock
 }
 
@@ -88,6 +89,7 @@ func getPopulatedDB(t *testing.T) *DB {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
 	usersStmt := "INSERT INTO users (id, url, nick, dt_added, last_sync) VALUES (?,?,?,?,?)"
 	for _, u := range populatedDBUsers {
 		if _, err := db.conn.Exec(usersStmt, u.ID, u.URL, u.Nick, u.DateTimeAdded.Unix(), u.LastSync.Unix()); err != nil {
@@ -96,6 +98,7 @@ func getPopulatedDB(t *testing.T) *DB {
 			return nil
 		}
 	}
+
 	tweetsStmt := "INSERT INTO tweets (id, user_id, dt, body, hidden) VALUES (?,?,?,?,?)"
 	for _, tw := range populatedDBTweets {
 		if _, err := db.conn.Exec(tweetsStmt, tw.ID, tw.UserID, tw.DateTime.Unix(), tw.Body, tw.Hidden); err != nil {
@@ -104,20 +107,22 @@ func getPopulatedDB(t *testing.T) *DB {
 			return nil
 		}
 	}
+
 	return db
 }
 
 func TestInitDB(t *testing.T) {
-	t.Run("in-memory, check for tables", func(t *testing.T) {
-		db, err := InitDB(":memory:")
-		if err != nil {
+	db, err := InitDB(":memory:")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	defer func() {
+		if err := db.conn.Close(); err != nil {
 			t.Error(err.Error())
 		}
-		defer func() {
-			if err := db.conn.Close(); err != nil {
-				t.Error(err.Error())
-			}
-		}()
+	}()
+
+	t.Run("in-memory, check for tables", func(t *testing.T) {
 		rows, err := db.conn.Query("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
 		if err != nil {
 			t.Error(err.Error())
@@ -137,6 +142,14 @@ func TestInitDB(t *testing.T) {
 }
 
 func TestDB_GetUserByURL(t *testing.T) {
+	mockDB, mock := getDBMocker(t)
+	memDB := getPopulatedDB(t)
+	defer func() {
+		if err := memDB.conn.Close(); err != nil {
+			t.Error(err.Error())
+		}
+	}()
+
 	t.Run("invalid user URL", func(t *testing.T) {
 		db := DB{}
 		_, err := db.GetUserByURL("    ")
@@ -148,8 +161,8 @@ func TestDB_GetUserByURL(t *testing.T) {
 			t.Errorf("expected empty URL error, got: %s", err)
 		}
 	})
+
 	t.Run("couldn't retrieve user", func(t *testing.T) {
-		mockDB, mock := getDBMocker(t)
 		mock.ExpectQuery("SELECT (.+) FROM users WHERE url = ?").
 			WithArgs("https://example.net/twtxt.txt").
 			WillReturnError(sql.ErrNoRows)
@@ -158,14 +171,8 @@ func TestDB_GetUserByURL(t *testing.T) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
-	t.Run("get a user successfully", func(t *testing.T) {
-		memDB := getPopulatedDB(t)
-		defer func() {
-			if err := memDB.conn.Close(); err != nil {
-				t.Error(err.Error())
-			}
-		}()
 
+	t.Run("get a user successfully", func(t *testing.T) {
 		out, err := memDB.GetUserByURL("https://example.com/twtxt.txt")
 		if err != nil {
 			t.Error(err.Error())
@@ -174,4 +181,8 @@ func TestDB_GetUserByURL(t *testing.T) {
 			t.Errorf("Expected nick 'foobar', got '%s'", out.Nick)
 		}
 	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err.Error())
+	}
 }
