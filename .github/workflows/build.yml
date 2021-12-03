@@ -18,7 +18,7 @@ jobs:
           version: latest
 
       - name: Build
-        run: go build -v ./cmd/getwtxt-ng
+        run: go build ./cmd/getwtxt-ng
 
       - name: Test
-        run: go test -v ./...
+        run: go test ./...
