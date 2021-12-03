@@ -27,7 +27,14 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// DB contains the database connection pool and associated settings.
 type DB struct {
+	// EntriesPerPageMin specifies the minimum number of users or tweets to display in a single page.
+	EntriesPerPageMin int
+
+	// EntriesPerPageMax specifies the maximum number of users or tweets to display in a single page.
+	EntriesPerPageMax int
+
 	conn *sql.DB
 }
 
@@ -66,5 +73,11 @@ func InitDB(dbPath string) (*DB, error) {
 		return nil, xerrors.Errorf("while creating tweets table at %s :: %w", dbPath, err)
 	}
 
-	return &DB{conn: db}, nil
+	dbWrap := DB{
+		conn:              db,
+		EntriesPerPageMin: 20,
+		EntriesPerPageMax: 1000,
+	}
+
+	return &dbWrap, nil
 }

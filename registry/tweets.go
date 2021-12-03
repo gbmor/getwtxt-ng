@@ -96,11 +96,11 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 
 // GetTweets gets a page's worth of tweets.
 func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
-	if perPage < 20 {
-		perPage = 20
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
 	}
-	if perPage > 1000 {
-		perPage = 1000
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
 	}
 	if page < 0 {
 		page = 0

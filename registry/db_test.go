@@ -75,7 +75,13 @@ func getDBMocker(t *testing.T) (*DB, sqlmock.Sqlmock) {
 		t.Fatal(err.Error())
 	}
 
-	return &DB{conn: dbConn}, mock
+	dbWrap := DB{
+		conn:              dbConn,
+		EntriesPerPageMax: 1000,
+		EntriesPerPageMin: 20,
+	}
+
+	return &dbWrap, mock
 }
 
 // getPopulatedDB returns an in-memory SQLite3 database with
