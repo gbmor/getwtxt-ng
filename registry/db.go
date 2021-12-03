@@ -53,7 +53,7 @@ type DB struct {
 type TweetVisibilityStatus int
 
 const (
-	StatusVisible TweetVisibilityStatus = 2 << iota
+	StatusVisible TweetVisibilityStatus = iota
 	StatusHidden
 )
 
@@ -133,9 +133,7 @@ func (d *DB) InsertUser(u *User) error {
 		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("When rolling back tx that attempted to add user %s: %s", u.URL, err)
-		}
+		_ = tx.Rollback()
 	}()
 
 	_, err = tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.Unix())
@@ -157,14 +155,12 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 		return 0, xerrors.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("When rolling back tx that attempted to delete user %s: %s", u.URL, err)
-		}
+		_ = tx.Rollback()
 	}()
 
 	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
 	res, err := tx.Exec(delTweetsStmt, u.ID)
-	if err != nil {
+	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
 		return 0, err
 	}
 
@@ -197,9 +193,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 		return xerrors.Errorf("when beginning tx to insert tweets: %w", err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("When rolling back tx that attempted to insert tweets: %s", err)
-		}
+		_ = tx.Rollback()
 	}()
 
 	insertStmt := "INSERT INTO tweets (user_id, dt, body) VALUES(?,?,?)"
@@ -209,7 +203,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 	}
 
 	for _, t := range tweets {
-		if _, err := stmt.Exec(t.UserID, t.DateTime, t.Body); err != nil {
+		if _, err := stmt.Exec(t.UserID, t.DateTime.Unix(), t.Body); err != nil {
 			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
@@ -228,13 +222,11 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 		return xerrors.Errorf("when beginning tx to hide tweet by %s at %s: %w", userID, timestamp, err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("When rolling back tx that attempted to hide tweet by %s at %s: %s", userID, timestamp, err)
-		}
+		_ = tx.Rollback()
 	}()
 
-	hideStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
-	if _, err := tx.Exec(hideStmt, status, userID, timestamp.Unix()); err != nil {
+	toggleStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
+	if _, err := tx.Exec(toggleStmt, status, userID, timestamp.Unix()); err != nil {
 		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
 
