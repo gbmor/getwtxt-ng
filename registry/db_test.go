@@ -393,7 +393,7 @@ func TestDB_InsertTweets(t *testing.T) {
 		mock.ExpectBegin()
 		stmt := mock.ExpectPrepare(insertStmt)
 		stmt.ExpectExec().
-			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime, populatedDBTweets[0].Body).
+			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.Unix(), populatedDBTweets[0].Body).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertTweets(populatedDBTweets)
