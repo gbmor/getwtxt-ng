@@ -232,3 +232,42 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 
 	return tx.Commit()
 }
+
+// GetTweets gets a page's worth of tweets.
+func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
+	if perPage < 20 {
+		perPage = 20
+	}
+	if perPage > 1000 {
+		perPage = 1000
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id < ? ORDER BY dt DESC"
+	rows, err := d.conn.Query(tweetStmt, idFloor, idCeil)
+	if err != nil {
+		return nil, xerrors.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			log.Printf("when querying for tweets %d - %d: %s", idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(dt, 0)
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}

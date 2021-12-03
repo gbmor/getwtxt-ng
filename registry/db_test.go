@@ -512,3 +512,48 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 		t.Error(err.Error())
 	}
 }
+
+func TestDB_GetTweets(t *testing.T) {
+	memDB := getPopulatedDB(t)
+	mockDB, mock := getDBMocker(t)
+	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id < ? ORDER BY dt DESC"
+
+	t.Run("error on query", func(t *testing.T) {
+		mock.ExpectQuery(tweetStmt).
+			WithArgs(0, 20).
+			WillReturnError(sql.ErrNoRows)
+		_, err := mockDB.GetTweets(-1, 2)
+		if !xerrors.Is(err, sql.ErrNoRows) {
+			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
+		}
+	})
+
+	t.Run("fail to scan", func(t *testing.T) {
+		mock.ExpectQuery(tweetStmt).
+			WithArgs(0, 1000).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id", "user_id", "dt", "body", "hidden"}).
+					AddRow("1", "2", "thirty five o'clock", "hello there", 0))
+		out, err := mockDB.GetTweets(0, 2000)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) > 0 {
+			t.Errorf("Got %d tweets, expected zero", len(out))
+		}
+	})
+
+	t.Run("get tweets", func(t *testing.T) {
+		out, err := memDB.GetTweets(0, 20)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) != len(populatedDBTweets) {
+			t.Errorf("Expected %d tweets, got %d", len(populatedDBTweets), len(out))
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf(err.Error())
+	}
+}
