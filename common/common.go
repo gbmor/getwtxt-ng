@@ -35,7 +35,7 @@ func HashPass(s string) (string, error) {
 	if s == "" {
 		return "", nil
 	}
-	h, err := bcrypt.GenerateFromPassword([]byte(s), 14)
+	h, err := bcrypt.GenerateFromPassword([]byte(s), 12)
 	if err != nil {
 		return "", err
 	}

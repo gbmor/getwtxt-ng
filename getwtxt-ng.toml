@@ -17,7 +17,8 @@
 # If any other configuration fields are changed, you must restart getwtxt-ng.
 
 [server_config]
-admin_password = "please_change_me"
+# admin_password should be a generated with the cmd/adminPassGen tool.
+admin_password = ""
 bind_ip = "127.0.0.1"
 port = "9001"
 database_path = "getwtxt-ng.db"

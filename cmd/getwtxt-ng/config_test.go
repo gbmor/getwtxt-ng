@@ -228,7 +228,7 @@ func TestConfig_reload(t *testing.T) {
 		}
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
-		contents := "[server_config]\nbind_ip = \"127.0.0.1\""
+		contents := "[server_config]\nbind_ip = \"127.0.0.1\"\nadmin_password = \"foobar\""
 		_, _ = fd.Write([]byte(contents))
 		_ = fd.Close()
 		if err := oldConf.reload(tmpFilePath); err != nil {
@@ -250,7 +250,8 @@ func TestConfig_reload(t *testing.T) {
 		contents := `[server_config]
 						bind_ip = "127.0.0.1"
 						message_log = "message.log"
-						fetch_interval = "1h"`
+						fetch_interval = "1h"
+						admin_password = "foobar"`
 		_, _ = fd.Write([]byte(contents))
 		_ = fd.Close()
 		if err := oldConf.reload(tmpFilePath); err != nil {

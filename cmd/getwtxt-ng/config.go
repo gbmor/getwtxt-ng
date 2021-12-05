@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/gbmor/getwtxt-ng/common"
 	"golang.org/x/xerrors"
 )
 
@@ -39,7 +38,6 @@ type Config struct {
 
 type ServerConfig struct {
 	AdminPassword            string `toml:"admin_password"`
-	AdminPasswordHash        string
 	IP                       string `toml:"bind_ip"`
 	Port                     string `toml:"port"`
 	DatabasePath             string `toml:"database_path"`
@@ -80,7 +78,7 @@ func readConfig(path string) (*Config, error) {
 
 // Open files, parse fetch interval, hash admin pass
 func (c *Config) parse() error {
-	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
+	if strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return xerrors.New("please set admin_password in the configuration file")
 	}
 
@@ -90,13 +88,6 @@ func (c *Config) parse() error {
 	if c.ServerConfig.EntriesPerPageMin < 10 {
 		c.ServerConfig.EntriesPerPageMin = 10
 	}
-
-	pHash, err := common.HashPass(c.ServerConfig.AdminPassword)
-	if err != nil {
-		return xerrors.Errorf("when hashing admin password: %w", err)
-	}
-	c.ServerConfig.AdminPasswordHash = pHash
-	c.ServerConfig.AdminPassword = ""
 
 	intervalParsed, err := time.ParseDuration(c.ServerConfig.FetchIntervalStr)
 	if err != nil {
@@ -129,6 +120,10 @@ func (c *Config) reload(path string) error {
 		return xerrors.Errorf("while reloading config: %w", err)
 	}
 
+	if strings.TrimSpace(newConf.ServerConfig.AdminPassword) == "" {
+		return xerrors.New("please set admin_password in the configuration file")
+	}
+
 	if newConf.ServerConfig.MessageLogPath != c.ServerConfig.MessageLogPath {
 		msgLogFd, err := os.OpenFile(newConf.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
@@ -143,14 +138,6 @@ func (c *Config) reload(path string) error {
 			}
 		}
 	}
-
-	adminPasswordHash, err := common.HashPass(newConf.ServerConfig.AdminPassword)
-	if err != nil {
-		log.Printf("Couldn't change admin password when reloading config: %s", err)
-	} else {
-		c.ServerConfig.AdminPasswordHash = adminPasswordHash
-	}
-	newConf.ServerConfig.AdminPassword = ""
 
 	fetchInterval, err := time.ParseDuration(newConf.ServerConfig.FetchIntervalStr)
 	if err != nil {
