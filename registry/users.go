@@ -127,6 +127,7 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 
 // GetUsers gets a page's worth of users.
 func (d *DB) GetUsers(page, perPage int) ([]User, error) {
+	page--
 	if perPage < d.EntriesPerPageMin {
 		perPage = d.EntriesPerPageMin
 	}
@@ -139,7 +140,7 @@ func (d *DB) GetUsers(page, perPage int) ([]User, error) {
 	idFloor := page * perPage
 	idCeil := idFloor + perPage
 
-	userStmt := "SELECT * FROM users WHERE id > ? AND id < ? ORDER BY dt_added DESC"
+	userStmt := "SELECT * FROM users WHERE id > ? AND id <= ? ORDER BY dt_added DESC"
 	rows, err := d.conn.Query(userStmt, idFloor, idCeil)
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for users %d - %d: %w", idFloor+1, idCeil+1, err)

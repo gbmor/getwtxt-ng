@@ -96,6 +96,7 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 
 // GetTweets gets a page's worth of tweets.
 func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
+	page--
 	if perPage < d.EntriesPerPageMin {
 		perPage = d.EntriesPerPageMin
 	}
@@ -108,7 +109,7 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 	idFloor := page * perPage
 	idCeil := idFloor + perPage
 
-	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id < ? ORDER BY dt DESC"
+	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id <= ? ORDER BY dt DESC"
 	rows, err := d.conn.Query(tweetStmt, idFloor, idCeil)
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)
