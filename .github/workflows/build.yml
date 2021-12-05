@@ -17,8 +17,11 @@ jobs:
         with:
           version: latest
 
-      - name: Build
+      - name: Build getwtxt-ng
         run: go build ./cmd/getwtxt-ng
+
+      - name: Build adminPassGen
+        run: go build ./cmd/adminPassGen
 
       - name: Test
         run: go test ./...
