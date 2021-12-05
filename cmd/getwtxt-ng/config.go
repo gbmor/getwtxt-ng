@@ -51,6 +51,8 @@ type ServerConfig struct {
 	FetchInterval            time.Duration
 	AssetsDirectoryPath      string `toml:"assets_directory"`
 	StaticFilesDirectoryPath string `toml:"static_files_directory"`
+	EntriesPerPageMax        int    `toml:"entries_per_page_max"`
+	EntriesPerPageMin        int    `toml:"entries_per_page_min"`
 }
 
 // InstanceConfig holds the values that will be filled in on the landing page template.
@@ -80,6 +82,13 @@ func readConfig(path string) (*Config, error) {
 func (c *Config) parse() error {
 	if c.ServerConfig.AdminPassword == "please_change_me" || strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return xerrors.New("please set admin_password in the configuration file")
+	}
+
+	if c.ServerConfig.EntriesPerPageMax < 20 {
+		c.ServerConfig.EntriesPerPageMax = 20
+	}
+	if c.ServerConfig.EntriesPerPageMin < 10 {
+		c.ServerConfig.EntriesPerPageMin = 10
 	}
 
 	pHash, err := common.HashPass(c.ServerConfig.AdminPassword)
@@ -152,7 +161,16 @@ func (c *Config) reload(path string) error {
 
 	c.ServerConfig.AssetsDirectoryPath = newConf.ServerConfig.AssetsDirectoryPath
 	c.ServerConfig.StaticFilesDirectoryPath = newConf.ServerConfig.StaticFilesDirectoryPath
+	c.ServerConfig.EntriesPerPageMax = newConf.ServerConfig.EntriesPerPageMax
+	c.ServerConfig.EntriesPerPageMin = newConf.ServerConfig.EntriesPerPageMin
 	c.InstanceConfig = newConf.InstanceConfig
+
+	if c.ServerConfig.EntriesPerPageMax < 20 {
+		c.ServerConfig.EntriesPerPageMax = 20
+	}
+	if c.ServerConfig.EntriesPerPageMin < 10 {
+		c.ServerConfig.EntriesPerPageMin = 10
+	}
 
 	return nil
 }

@@ -6,6 +6,8 @@
 #    fetch_interval
 #    assets_directory
 #    static_files_directory
+#    entries_per_page_max
+#    entries_per_page_min
 #    site_name
 #    site_url
 #    site_description
@@ -24,6 +26,10 @@ request_log = "request.log"
 fetch_interval = "1h"
 assets_directory = "assets"
 static_files_directory = "static"
+
+# max must be at least 20, min must be at least 10
+entries_per_page_max = 1000
+entries_per_page_min = 20
 
 [instance_info]
 site_name = "getwtxt-ng"
