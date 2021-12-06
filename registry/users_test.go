@@ -289,3 +289,59 @@ func TestDB_GetUsers(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 }
+
+func TestDB_SearchUsers(t *testing.T) {
+	mockDB, mock := getDBMocker(t)
+	searchTerm := "%foo%"
+	searchStmt := `SELECT id, url, nick, dt_added, last_sync
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users WHERE nick LIKE ? OR url LIKE ?)
+					WHERE set_id > ?
+  					AND set_id <= ?`
+
+	t.Run("error on query", func(t *testing.T) {
+		mock.ExpectQuery(searchStmt).
+			WithArgs(searchTerm, searchTerm, 0, 20).
+			WillReturnError(sql.ErrNoRows)
+		_, err := mockDB.SearchUsers(1, 3, "foo")
+		if !xerrors.Is(err, sql.ErrNoRows) {
+			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
+		}
+	})
+
+	t.Run("fail to scan", func(t *testing.T) {
+		mock.ExpectQuery(searchStmt).
+			WithArgs(searchTerm, searchTerm, 0, 1000).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "url", "nick", "dt_added", "last_sync"}).
+				AddRow(5, "https://example.com/twtxt.txt", "foo", "eleventy-three o'clock", 0))
+		out, err := mockDB.SearchUsers(0, 5000, "foo")
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) > 0 {
+			t.Errorf("Expected 0 users, got %d", len(out))
+		}
+	})
+
+	t.Run("search", func(t *testing.T) {
+		searchTerm := "example"
+		memDB := getPopulatedDB(t)
+		out, err := memDB.SearchUsers(1, 20, searchTerm)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		lastDT := out[0].DateTimeAdded.UnixNano()
+		for i, user := range out {
+			if !strings.Contains(user.URL, searchTerm) && !strings.Contains(user.Nick, searchTerm) {
+				t.Errorf("User nick and URL don't contain '%s': %s %s", searchTerm, user.Nick, user.URL)
+			}
+			if i > 0 && lastDT <= user.DateTimeAdded.UnixNano() {
+				t.Error("tweets out of order")
+			}
+			lastDT = user.DateTimeAdded.UnixNano()
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err.Error())
+	}
+}

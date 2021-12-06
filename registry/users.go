@@ -21,6 +21,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -161,6 +162,50 @@ func (d *DB) GetUsers(page, perPage int) ([]User, error) {
 		}
 		thisUser.DateTimeAdded = time.Unix(0, dt)
 		thisUser.LastSync = time.Unix(0, ls)
+		users = append(users, thisUser)
+	}
+
+	return users, nil
+}
+
+// SearchUsers returns a paginated list of users whose nicknames or URLs match the query.
+func (d *DB) SearchUsers(page, perPage int, searchTerm string) ([]User, error) {
+	// SQLite expects the format %term% for arbitrary characters on either side of the search term.
+	searchTerm = fmt.Sprintf("%%%s%%", searchTerm)
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, url, nick, dt_added, last_sync
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users WHERE nick LIKE ? OR url LIKE ?)
+					WHERE set_id > ?
+  					AND set_id <= ?`
+	rows, err := d.conn.Query(searchStmt, searchTerm, searchTerm, idFloor, idCeil)
+	if err != nil {
+		return nil, xerrors.Errorf("when querying for users containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+	}
+
+	users := make([]User, 0)
+	for rows.Next() {
+		dt := int64(0)
+		dtSync := int64(0)
+		thisUser := User{}
+		err := rows.Scan(&thisUser.ID, &thisUser.URL, &thisUser.Nick, &dt, &dtSync)
+		if err != nil {
+			log.Printf("when querying for users containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisUser.DateTimeAdded = time.Unix(0, dt)
+		thisUser.LastSync = time.Unix(0, dtSync)
 		users = append(users, thisUser)
 	}
 
