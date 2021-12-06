@@ -48,7 +48,7 @@ var populatedDBTweets = []Tweet{
 		ID:       "1",
 		UserID:   "1",
 		DateTime: time.Now().UTC().AddDate(0, 0, -11),
-		Body:     "hello world",
+		Body:     "hallo this is dog",
 	},
 	{
 		ID:       "2",
@@ -60,7 +60,7 @@ var populatedDBTweets = []Tweet{
 		ID:       "3",
 		UserID:   "2",
 		DateTime: time.Now().UTC().AddDate(0, 0, -2),
-		Body:     "blah blah spam post",
+		Body:     "blah blah spam",
 		Hidden:   1,
 	},
 }

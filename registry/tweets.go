@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -125,6 +126,48 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &dt, &thisTweet.Body, &thisTweet.Hidden)
 		if err != nil {
 			log.Printf("when querying for tweets %d - %d: %s", idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(0, dt)
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}
+
+// SearchTweets searches for a given term in tweet bodies and returns a page worth.
+func (d *DB) SearchTweets(page, perPage int, searchTerm string) ([]Tweet, error) {
+	// SQLite expects the format %term% for arbitrary characters on either side of the search term.
+	searchTerm = fmt.Sprintf("%%%s%%", searchTerm)
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, user_id, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets WHERE body LIKE ?)
+					WHERE set_id > ?
+  					AND set_id <= ?`
+	rows, err := d.conn.Query(searchStmt, searchTerm, idFloor, idCeil)
+	if err != nil {
+		return nil, xerrors.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+	}
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			log.Printf("when querying for tweets containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
 			continue
 		}
 		thisTweet.DateTime = time.Unix(0, dt)

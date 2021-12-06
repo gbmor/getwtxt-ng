@@ -230,3 +230,60 @@ func TestDB_GetTweets(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 }
+
+func TestDB_SearchTweets(t *testing.T) {
+	mockDB, mock := getDBMocker(t)
+	searchStmt := `SELECT id, user_id, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets WHERE body LIKE ?)
+					WHERE set_id > ?
+  					AND set_id <= ?`
+
+	t.Run("fail to query", func(t *testing.T) {
+		mock.ExpectQuery(searchStmt).
+			WithArgs("%foo%", 0, 20).
+			WillReturnError(sql.ErrNoRows)
+		_, err := mockDB.SearchTweets(1, 1, "foo")
+		if !xerrors.Is(err, sql.ErrNoRows) {
+			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
+		}
+	})
+
+	t.Run("fail to scan", func(t *testing.T) {
+		mock.ExpectQuery(searchStmt).
+			WithArgs("%foo%", 0, 1000).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id", "user_id", "dt", "body", "hidden"}).
+					AddRow("1", "2", "thirty five o'clock", "hello there", 0))
+		out, err := mockDB.SearchTweets(0, 2000, "foo")
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if len(out) > 0 {
+			t.Errorf("Got %d tweets, expected zero", len(out))
+		}
+	})
+
+	t.Run("search", func(t *testing.T) {
+		searchTerm := "o"
+		memDB := getPopulatedDB(t)
+		memDB.EntriesPerPageMin = 1
+		out, err := memDB.SearchTweets(1, 10, searchTerm)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		lastDT := out[0].DateTime.UnixMicro()
+		for i, tweet := range out {
+			if !strings.Contains(tweet.Body, searchTerm) {
+				t.Errorf("Tweet body doesn't contain '%s': %s", searchTerm, tweet.Body)
+			}
+			if i > 0 && lastDT <= tweet.DateTime.UnixMicro() {
+				t.Error("tweets out of order")
+			}
+			lastDT = tweet.DateTime.UnixMicro()
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err.Error())
+	}
+}
