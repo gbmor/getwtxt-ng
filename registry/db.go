@@ -22,6 +22,8 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"database/sql"
+	"net/http"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/xerrors"
@@ -35,11 +37,14 @@ type DB struct {
 	// EntriesPerPageMax specifies the maximum number of users or tweets to display in a single page.
 	EntriesPerPageMax int
 
+	// Client is the default HTTP client, which has a 5-second timeout.
+	Client *http.Client
+
 	conn *sql.DB
 }
 
 // InitDB initializes the registry's database, creating the appropriate tables if needed.
-func InitDB(dbPath string, maxEntriesPerPage, minEntriesPerPage int) (*DB, error) {
+func InitDB(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
@@ -73,10 +78,17 @@ func InitDB(dbPath string, maxEntriesPerPage, minEntriesPerPage int) (*DB, error
 		return nil, xerrors.Errorf("while creating tweets table at %s :: %w", dbPath, err)
 	}
 
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: 5 * time.Second,
+		}
+	}
+
 	dbWrap := DB{
 		conn:              db,
 		EntriesPerPageMin: minEntriesPerPage,
 		EntriesPerPageMax: maxEntriesPerPage,
+		Client:            httpClient,
 	}
 
 	return &dbWrap, nil
