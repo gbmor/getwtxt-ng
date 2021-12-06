@@ -85,7 +85,11 @@ func (d *DB) InsertUser(u *User) error {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return xerrors.Errorf("error committing tx to insert user %s %s: %w", u.Nick, u.URL, err)
+	}
+
+	return nil
 }
 
 // DeleteUser removes a user and their tweets. Returns the number of tweets deleted.
@@ -105,13 +109,13 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
 	res, err := tx.Exec(delTweetsStmt, u.ID)
 	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
-		return 0, err
+		return 0, xerrors.Errorf("could not delete tweets for user %s: %w", u.ID, err)
 	}
 
 	delUserStmt := "DELETE FROM users WHERE id = ?"
 	_, err = tx.Exec(delUserStmt, u.ID)
 	if err != nil {
-		return 0, err
+		return 0, xerrors.Errorf("could not delete user %s: %w", u.ID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -193,6 +197,9 @@ func (d *DB) SearchUsers(page, perPage int, searchTerm string) ([]User, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for users containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	users := make([]User, 0)
 	for rows.Next() {

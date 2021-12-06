@@ -63,6 +63,9 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 	if err != nil {
 		return xerrors.Errorf("could not prepare statement to insert tweets: %w", err)
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	for _, t := range tweets {
 		if _, err := stmt.Exec(t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
@@ -70,7 +73,11 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return xerrors.Errorf("error committing tx to insert tweets: %w", err)
+	}
+
+	return nil
 }
 
 // ToggleTweetHiddenStatus changes the provided tweet's hidden status.
@@ -92,7 +99,11 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return xerrors.Errorf("error committing tx to set hidden status of tweet by user %s at %s to %d: %w", userID, timestamp, status, err)
+	}
+
+	return nil
 }
 
 // GetTweets gets a page's worth of tweets.
@@ -160,6 +171,9 @@ func (d *DB) SearchTweets(page, perPage int, searchTerm string) ([]Tweet, error)
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	tweets := make([]Tweet, 0)
 	for rows.Next() {
