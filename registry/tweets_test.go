@@ -271,15 +271,15 @@ func TestDB_SearchTweets(t *testing.T) {
 		if err != nil {
 			t.Error(err.Error())
 		}
-		lastDT := out[0].DateTime.UnixMicro()
+		lastDT := out[0].DateTime.UnixNano()
 		for i, tweet := range out {
 			if !strings.Contains(tweet.Body, searchTerm) {
 				t.Errorf("Tweet body doesn't contain '%s': %s", searchTerm, tweet.Body)
 			}
-			if i > 0 && lastDT <= tweet.DateTime.UnixMicro() {
+			if i > 0 && lastDT <= tweet.DateTime.UnixNano() {
 				t.Error("tweets out of order")
 			}
-			lastDT = tweet.DateTime.UnixMicro()
+			lastDT = tweet.DateTime.UnixNano()
 		}
 	})
 
