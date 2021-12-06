@@ -71,3 +71,33 @@ func TestHttpWriteLn(t *testing.T) {
 		t.Errorf("Got %v, expected %v", bdy, in)
 	}
 }
+
+func TestIsValidURL(t *testing.T) {
+	cases := []struct {
+		url    string
+		expect bool
+	}{
+		{
+			url:    "https://example.com",
+			expect: true,
+		},
+		{
+			url:    "http://example.com",
+			expect: true,
+		},
+		{
+			url: "gopher://example.com",
+		},
+		{
+			url: "",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.url, func(t *testing.T) {
+			out := IsValidURL(tt.url)
+			if out != tt.expect {
+				t.Errorf("Got %v, expected %v", out, tt.expect)
+			}
+		})
+	}
+}
