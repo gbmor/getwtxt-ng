@@ -30,6 +30,7 @@ import (
 )
 
 const MimePlain = "text/plain; charset=utf-8"
+const MimeJson = "application/json; charset=utf-8"
 
 // HashPass returns the bcrypt hash of the provided string.
 // If an empty string is provided, return an empty string.
