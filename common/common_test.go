@@ -91,6 +91,15 @@ func TestIsValidURL(t *testing.T) {
 		{
 			url: "",
 		},
+		{
+			url: "http://localhost",
+		},
+		{
+			url: "http://127.0.0.1",
+		},
+		{
+			url: "http://::1",
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.url, func(t *testing.T) {

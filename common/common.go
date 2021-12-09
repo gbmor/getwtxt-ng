@@ -23,8 +23,10 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 import (
 	"bytes"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -61,11 +63,23 @@ func HttpWriteLn(in []byte, w http.ResponseWriter, code int, mime string) error 
 
 // IsValidURL returns true if the provided URL is a valid-looking HTTP or HTTPS URL.
 func IsValidURL(destURL string) bool {
+	if strings.TrimSpace(destURL) == "" {
+		return false
+	}
 	parsedURL, err := url.Parse(destURL)
 	if err != nil {
 		log.Printf("Error parsing URL %s: %s", destURL, err)
 		return false
 	}
+
+	if parsedURL.Host == "localhost" {
+		return false
+	}
+	ip := net.ParseIP(parsedURL.Host)
+	if ip.IsLoopback() {
+		return false
+	}
+
 	if parsedURL.Scheme != "https" && parsedURL.Scheme != "http" {
 		return false
 	}
