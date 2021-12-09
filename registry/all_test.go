@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,6 +29,14 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gbmor/getwtxt-ng/common"
 )
+
+var testTwtxtFile = fmt.Sprintf(`
+# this is a comment
+%s	hello there
+%s	this one uses rfc3339nano datetime
+%d	this one uses epoch time for some reason`, time.Now().UTC().AddDate(0, 0, -10).Format(time.RFC3339),
+	time.Now().UTC().AddDate(0, 0, -5).Format(time.RFC3339Nano),
+	time.Now().UTC().AddDate(0, 0, -2).Unix())
 
 var populatedDBUsers = []User{
 	{
@@ -129,6 +138,11 @@ func twtxtTestingHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.URL.Path, "/json") {
 		w.Header().Set("Content-Type", common.MimeJson)
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if strings.Contains(r.URL.Path, "/twtxt.txt") {
+		w.Header().Set("Content-Type", common.MimePlain)
+		_, _ = w.Write([]byte(testTwtxtFile))
 		return
 	}
 }

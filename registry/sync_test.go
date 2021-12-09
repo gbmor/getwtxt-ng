@@ -39,11 +39,12 @@ func TestDB_FetchTwtxt(t *testing.T) {
 		lastModified time.Time
 	}
 	tests := []struct {
-		name    string
-		db      *DB
-		args    args
-		want    []Tweet
-		wantErr bool
+		name          string
+		db            *DB
+		args          args
+		want          []Tweet
+		wantErr       bool
+		skipDeepEqual bool
 	}{
 		{
 			name:    "empty url",
@@ -94,6 +95,18 @@ func TestDB_FetchTwtxt(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "success with soft fail",
+			db: &DB{
+				Client: client,
+			},
+			args: args{
+				twtxtURL: fmt.Sprintf("%s/twtxt.txt", srv.URL),
+			},
+			want:          nil,
+			wantErr:       false,
+			skipDeepEqual: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,7 +115,7 @@ func TestDB_FetchTwtxt(t *testing.T) {
 				t.Errorf("FetchTwtxt() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !tt.skipDeepEqual && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FetchTwtxt() got = %v, want %v", got, tt.want)
 			}
 		})
