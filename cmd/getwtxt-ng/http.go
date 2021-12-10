@@ -19,10 +19,38 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/throttled/throttled/v2"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
+
+func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
+	store, err := memstore.New(65536)
+	if err != nil {
+		fmt.Printf("Could not initialize memstore for HTTP rate limiter: %s", err)
+		os.Exit(1)
+	}
+
+	limits := throttled.RateQuota{
+		MaxRate:  throttled.PerMin(conf.ServerConfig.HTTPRequestsPerMinute),
+		MaxBurst: conf.ServerConfig.HTTPRequestsBurstMax,
+	}
+
+	rl, err := throttled.NewGCRARateLimiter(store, limits)
+	if err != nil {
+		fmt.Printf("Couldn't build rate limiter: %s", err)
+		os.Exit(1)
+	}
+
+	return throttled.HTTPRateLimiter{
+		RateLimiter: rl,
+		VaryBy:      &throttled.VaryBy{Path: true},
+	}
+}
 
 func setUpRoutes(r *mux.Router, conf *Config) {
 	r.HandleFunc("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -32,6 +32,10 @@ static_files_directory = "static"
 entries_per_page_max = 1000
 entries_per_page_min = 20
 
+# http rate limiting
+http_requests_per_minute = 30
+http_requests_max_burst = 5
+
 [instance_info]
 site_name = "getwtxt-ng"
 site_url = "https://twtxt.example.com"

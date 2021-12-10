@@ -51,6 +51,8 @@ type ServerConfig struct {
 	StaticFilesDirectoryPath string `toml:"static_files_directory"`
 	EntriesPerPageMax        int    `toml:"entries_per_page_max"`
 	EntriesPerPageMin        int    `toml:"entries_per_page_min"`
+	HTTPRequestsPerMinute    int    `toml:"http_requests_per_minute"`
+	HTTPRequestsBurstMax     int    `toml:"http_requests_max_burst"`
 }
 
 // InstanceConfig holds the values that will be filled in on the landing page template.

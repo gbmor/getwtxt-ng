@@ -25,6 +25,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
 )
@@ -46,9 +47,15 @@ func main() {
 	signalWatcher(conf)
 
 	r := mux.NewRouter()
+	loggedHandler := handlers.CombinedLoggingHandler(conf.ServerConfig.RequestLogFd, r)
+
+	rl := getHTTPRateLimiter(conf)
+	rateLimitedHandler := rl.RateLimit(loggedHandler)
+
 	setUpRoutes(r, conf)
+
 	s := &http.Server{
-		Handler:      r,
+		Handler:      rateLimitedHandler,
 		Addr:         fmt.Sprintf("%s:%s", conf.ServerConfig.IP, conf.ServerConfig.Port),
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
