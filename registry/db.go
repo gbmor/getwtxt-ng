@@ -50,11 +50,6 @@ func InitDB(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient 
 		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
 	}
 
-	_, err = db.Exec("PRAGMA auto_vacuum = 1")
-	if err != nil {
-		return nil, xerrors.Errorf("could not enable auto-vacuum on database: %w", err)
-	}
-
 	createUserTableStr := `CREATE TABLE IF NOT EXISTS users (
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
     	url TEXT NOT NULL UNIQUE,
