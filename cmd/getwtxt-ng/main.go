@@ -25,6 +25,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gbmor/getwtxt-ng/common"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
@@ -34,6 +35,7 @@ var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config
 
 func main() {
 	pflag.Parse()
+	fmt.Printf("getwtxt-ng %s\n", common.Version)
 	conf, err := readConfig(*flagConfig)
 	if err != nil {
 		fmt.Printf("Error loading configuration from %s: %s\n", *flagConfig, err)

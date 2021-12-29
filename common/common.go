@@ -34,6 +34,8 @@ import (
 const MimePlain = "text/plain; charset=utf-8"
 const MimeJson = "application/json; charset=utf-8"
 
+var Version = "trunk"
+
 // HashPass returns the bcrypt hash of the provided string.
 // If an empty string is provided, return an empty string.
 func HashPass(s string) (string, error) {
