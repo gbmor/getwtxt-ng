@@ -1,4 +1,5 @@
 /getwtxt-ng
+/adminPassGen
 *.log
 logs/
 local/
