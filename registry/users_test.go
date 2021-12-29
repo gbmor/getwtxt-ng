@@ -248,7 +248,10 @@ func TestDB_DeleteUser(t *testing.T) {
 func TestDB_GetUsers(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
-	userStmt := "SELECT * FROM users WHERE id > ? AND id <= ? ORDER BY dt_added DESC"
+	userStmt := `SELECT id, url, nick, dt_added, last_sync
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users)
+					WHERE set_id > ?
+  					AND set_id <= ?`
 
 	t.Run("error on query", func(t *testing.T) {
 		mock.ExpectQuery(userStmt).

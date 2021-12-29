@@ -121,7 +121,10 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 	idFloor := page * perPage
 	idCeil := idFloor + perPage
 
-	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id <= ? ORDER BY dt DESC"
+	tweetStmt := `SELECT id, user_id, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets)
+					WHERE set_id > ?
+  					AND set_id <= ?`
 	rows, err := d.conn.Query(tweetStmt, idFloor, idCeil)
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)

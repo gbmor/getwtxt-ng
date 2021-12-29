@@ -145,7 +145,10 @@ func (d *DB) GetUsers(page, perPage int) ([]User, error) {
 	idFloor := page * perPage
 	idCeil := idFloor + perPage
 
-	userStmt := "SELECT * FROM users WHERE id > ? AND id <= ? ORDER BY dt_added DESC"
+	userStmt := `SELECT id, url, nick, dt_added, last_sync
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users)
+					WHERE set_id > ?
+  					AND set_id <= ?`
 	rows, err := d.conn.Query(userStmt, idFloor, idCeil)
 	if err != nil {
 		return nil, xerrors.Errorf("when querying for users %d - %d: %w", idFloor+1, idCeil+1, err)

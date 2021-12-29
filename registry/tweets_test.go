@@ -189,7 +189,10 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 func TestDB_GetTweets(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
-	tweetStmt := "SELECT * FROM tweets WHERE id > ? AND id <= ? ORDER BY dt DESC"
+	tweetStmt := `SELECT id, user_id, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets)
+					WHERE set_id > ?
+  					AND set_id <= ?`
 
 	t.Run("error on query", func(t *testing.T) {
 		mock.ExpectQuery(tweetStmt).
