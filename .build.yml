@@ -1,0 +1,11 @@
+image: alpine/edge
+packages:
+  - go
+sources:
+  - https://git.sr.ht/~gbmor/getwtxt-ng
+tasks:
+  - build: |
+      cd getwtxt-ng
+      make test
+      make
+
