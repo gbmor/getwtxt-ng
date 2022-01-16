@@ -20,12 +20,15 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/gbmor/getwtxt-ng/common"
 	"golang.org/x/xerrors"
 )
 
@@ -35,8 +38,29 @@ type User struct {
 	ID            string    `json:"id"`
 	URL           string    `json:"url"`
 	Nick          string    `json:"nick"`
+	Passcode      string    `json:"-"`
+	PasscodeHash  string    `json:"-"`
 	DateTimeAdded time.Time `json:"datetime_added"`
 	LastSync      time.Time `json:"last_sync"`
+}
+
+// GeneratePasscode creates a new passcode for a user, then stores it and its bcrypt hash in the User struct.
+// The plaintext passcode is returned on success.
+// Both the ciphertext and the plaintext passcode will be omitted if you serialize the User struct into JSON.
+func (u *User) GeneratePasscode() (string, error) {
+	b := make([]byte, 10)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("couldn't generate random bytes for user's passcode: %w", err)
+	}
+
+	u.Passcode = fmt.Sprintf("%x", b)
+	u.PasscodeHash, err = common.HashPass(u.Passcode)
+	if err != nil {
+		return "", fmt.Errorf("couldn't get hash of user's passcode: %w", err)
+	}
+
+	return u.Passcode, nil
 }
 
 // GetUserByURL returns the user's entire row from the database.
@@ -51,7 +75,7 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	lsRaw := int64(0)
 
 	stmt := "SELECT * FROM users WHERE url = ?"
-	err := d.conn.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &dtRaw, &lsRaw)
+	err := d.conn.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &user.PasscodeHash, &dtRaw, &lsRaw)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
@@ -65,8 +89,8 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 // InsertUser adds a user to the database.
 // The ID field of the provided *User is ignored.
 func (d *DB) InsertUser(u *User) error {
-	if u == nil || u.URL == "" || u.Nick == "" {
-		return xerrors.New("incomplete user info supplied: missing URL and/or nickname")
+	if u == nil || u.URL == "" || u.Nick == "" || u.PasscodeHash == "" {
+		return errors.New("incomplete user info supplied: missing URL and/or nickname and/or passcode")
 	}
 	if u.DateTimeAdded.IsZero() {
 		u.DateTimeAdded = time.Now().UTC()
@@ -80,7 +104,8 @@ func (d *DB) InsertUser(u *User) error {
 		_ = tx.Rollback()
 	}()
 
-	_, err = tx.Exec("INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)", u.URL, u.Nick, u.DateTimeAdded.UnixNano())
+	_, err = tx.Exec("INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)",
+		u.URL, u.Nick, u.PasscodeHash, u.DateTimeAdded.UnixNano())
 	if err != nil {
 		return xerrors.Errorf("when inserting user to DB: %w", err)
 	}

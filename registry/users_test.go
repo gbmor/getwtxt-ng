@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/gbmor/getwtxt-ng/common"
 	"golang.org/x/xerrors"
 )
 
@@ -80,11 +81,17 @@ func TestDB_InsertUser(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
 	memDB := getPopulatedDB(t)
 
-	testUser := User{
-		URL:  "https://example.net/twtxt.txt",
-		Nick: "foobaz",
+	passcodeHash, err := common.HashPass("abcdefghij0123456789")
+	if err != nil {
+		t.Error(err.Error())
+		return
 	}
-	insertStmt := "INSERT INTO users (url, nick, dt_added, last_sync) VALUES(?,?,?, 0)"
+	testUser := User{
+		URL:          "https://example.net/twtxt.txt",
+		Nick:         "foobaz",
+		PasscodeHash: passcodeHash,
+	}
+	insertStmt := "INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)"
 
 	t.Run("invalid params provided", func(t *testing.T) {
 		db := DB{}
@@ -108,7 +115,7 @@ func TestDB_InsertUser(t *testing.T) {
 	t.Run("fail to insert user, tx done", func(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(insertStmt).
-			WithArgs(testUser.URL, testUser.Nick, sqlmock.AnyArg()).
+			WithArgs(testUser.URL, testUser.Nick, sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertUser(&testUser)
@@ -132,15 +139,18 @@ func TestDB_InsertUser(t *testing.T) {
 		getUser := "SELECT * FROM users WHERE url = ?"
 		dbUser := User{}
 		dt := int64(0)
-		err = memDB.conn.QueryRow(getUser, testUser.URL).Scan(&dbUser.ID, &dbUser.URL, &dbUser.Nick, &dt, &dt)
+		err = memDB.conn.QueryRow(getUser, testUser.URL).Scan(&dbUser.ID, &dbUser.URL, &dbUser.Nick, &dbUser.PasscodeHash, &dt, &dt)
 		if err != nil {
 			t.Error(err.Error())
 		}
 		testUser.DateTimeAdded = time.Time{}
 		testUser.LastSync = time.Time{}
 		testUser.ID = dbUser.ID
-		if !reflect.DeepEqual(testUser, dbUser) {
-			t.Errorf("Expected:\n%#v\nGot:\n%#v\n", testUser, dbUser)
+		checkedUser := testUser
+		checkedUser.PasscodeHash = ""
+		dbUser.PasscodeHash = ""
+		if !reflect.DeepEqual(checkedUser, dbUser) {
+			t.Errorf("Expected:\n%#v\nGot:\n%#v\n", checkedUser, dbUser)
 		}
 	})
 

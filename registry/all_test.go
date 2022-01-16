@@ -43,6 +43,7 @@ var populatedDBUsers = []User{
 		ID:            "1",
 		URL:           "https://example.com/twtxt.txt",
 		Nick:          "foobar",
+		PasscodeHash:  "abcdefghij0123456789",
 		DateTimeAdded: time.Now().UTC().AddDate(0, 0, -15),
 		LastSync:      time.Now().UTC().AddDate(0, 0, -10),
 	},
@@ -50,6 +51,7 @@ var populatedDBUsers = []User{
 		ID:            "2",
 		URL:           "https://example.org/twtxt.txt",
 		Nick:          "barfoo",
+		PasscodeHash:  "abcdefghij0123456789",
 		DateTimeAdded: time.Now().UTC().AddDate(0, 0, -5),
 		LastSync:      time.Now().UTC().AddDate(0, 0, -1),
 	},
@@ -105,9 +107,13 @@ func getPopulatedDB(t *testing.T) *DB {
 		t.Fatal(err.Error())
 	}
 
-	usersStmt := "INSERT INTO users (id, url, nick, dt_added, last_sync) VALUES (?,?,?,?,?)"
+	usersStmt := "INSERT INTO users (id, url, nick, passcode_hash, dt_added, last_sync) VALUES (?,?,?,?,?,?)"
 	for _, u := range populatedDBUsers {
-		if _, err := db.conn.Exec(usersStmt, u.ID, u.URL, u.Nick, u.DateTimeAdded.UnixNano(), u.LastSync.UnixNano()); err != nil {
+		u.PasscodeHash, err = common.HashPass(u.PasscodeHash)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+		if _, err := db.conn.Exec(usersStmt, u.ID, u.URL, u.Nick, u.PasscodeHash, u.DateTimeAdded.UnixNano(), u.LastSync.UnixNano()); err != nil {
 			_ = db.conn.Close()
 			t.Fatal(err.Error())
 			return nil
