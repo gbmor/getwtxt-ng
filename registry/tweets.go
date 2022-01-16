@@ -20,11 +20,10 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
-
-	"golang.org/x/xerrors"
 )
 
 // Tweet represents a single entry in a User's twtxt.txt file.
@@ -47,12 +46,12 @@ const (
 // InsertTweets adds a collection of tweets to the database.
 func (d *DB) InsertTweets(tweets []Tweet) error {
 	if len(tweets) == 0 {
-		return xerrors.New("invalid tweets provided")
+		return errors.New("invalid tweets provided")
 	}
 
 	tx, err := d.conn.Begin()
 	if err != nil {
-		return xerrors.Errorf("when beginning tx to insert tweets: %w", err)
+		return fmt.Errorf("when beginning tx to insert tweets: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -61,7 +60,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 	insertStmt := "INSERT INTO tweets (user_id, dt, body) VALUES(?,?,?)"
 	stmt, err := tx.Prepare(insertStmt)
 	if err != nil {
-		return xerrors.Errorf("could not prepare statement to insert tweets: %w", err)
+		return fmt.Errorf("could not prepare statement to insert tweets: %w", err)
 	}
 	defer func() {
 		_ = stmt.Close()
@@ -69,12 +68,12 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 
 	for _, t := range tweets {
 		if _, err := stmt.Exec(t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
-			return xerrors.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
+			return fmt.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return xerrors.Errorf("error committing tx to insert tweets: %w", err)
+		return fmt.Errorf("error committing tx to insert tweets: %w", err)
 	}
 
 	return nil
@@ -83,12 +82,12 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 // ToggleTweetHiddenStatus changes the provided tweet's hidden status.
 func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status TweetVisibilityStatus) error {
 	if userID == "" || timestamp.IsZero() {
-		return xerrors.New("invalid user ID or tweet timestamp provided")
+		return errors.New("invalid user ID or tweet timestamp provided")
 	}
 
 	tx, err := d.conn.Begin()
 	if err != nil {
-		return xerrors.Errorf("when beginning tx to hide tweet by %s at %s: %w", userID, timestamp, err)
+		return fmt.Errorf("when beginning tx to hide tweet by %s at %s: %w", userID, timestamp, err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -96,11 +95,11 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 
 	toggleStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
 	if _, err := tx.Exec(toggleStmt, status, userID, timestamp.UnixNano()); err != nil {
-		return xerrors.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
+		return fmt.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return xerrors.Errorf("error committing tx to set hidden status of tweet by user %s at %s to %d: %w", userID, timestamp, status, err)
+		return fmt.Errorf("error committing tx to set hidden status of tweet by user %s at %s to %d: %w", userID, timestamp, status, err)
 	}
 
 	return nil
@@ -127,7 +126,7 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
   					AND set_id <= ?`
 	rows, err := d.conn.Query(tweetStmt, idFloor, idCeil)
 	if err != nil {
-		return nil, xerrors.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)
+		return nil, fmt.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)
 	}
 	defer func() {
 		_ = rows.Close()
@@ -172,7 +171,7 @@ func (d *DB) SearchTweets(page, perPage int, searchTerm string) ([]Tweet, error)
   					AND set_id <= ?`
 	rows, err := d.conn.Query(searchStmt, searchTerm, idFloor, idCeil)
 	if err != nil {
-		return nil, xerrors.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+		return nil, fmt.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
 	}
 	defer func() {
 		_ = rows.Close()

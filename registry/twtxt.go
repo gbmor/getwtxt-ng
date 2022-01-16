@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -27,7 +28,6 @@ import (
 	"time"
 
 	"github.com/gbmor/getwtxt-ng/common"
-	"golang.org/x/xerrors"
 )
 
 // FetchTwtxt grabs the twtxt file from the provided URL.
@@ -36,21 +36,21 @@ import (
 // If we receive a 304, return a nil slice and a nil error.
 func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Tweet, error) {
 	if !common.IsValidURL(twtxtURL) {
-		return nil, xerrors.Errorf("invalid URL provided: %s", twtxtURL)
+		return nil, fmt.Errorf("invalid URL provided: %s", twtxtURL)
 	}
 	if d == nil || d.Client == nil {
-		return nil, xerrors.Errorf("can't fetch twtxt file at %s: have nil receiver or nil HTTP client", twtxtURL)
+		return nil, fmt.Errorf("can't fetch twtxt file at %s: have nil receiver or nil HTTP client", twtxtURL)
 	}
 
 	req, err := http.NewRequest("GET", twtxtURL, nil)
 	if err != nil {
-		return nil, xerrors.Errorf("couldn't create http request to fetch %s: %w", twtxtURL, err)
+		return nil, fmt.Errorf("couldn't create http request to fetch %s: %w", twtxtURL, err)
 	}
 	req.Header.Set("If-Modified-Since", lastModified.Format(time.RFC1123))
 
 	resp, err := d.Client.Do(req)
 	if err != nil {
-		return nil, xerrors.Errorf("error making http request to %s: %w", twtxtURL, err)
+		return nil, fmt.Errorf("error making http request to %s: %w", twtxtURL, err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -59,17 +59,17 @@ func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Twee
 		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, xerrors.Errorf("got status code %d from %s", resp.StatusCode, twtxtURL)
+		return nil, fmt.Errorf("got status code %d from %s", resp.StatusCode, twtxtURL)
 	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "text/plain") {
-		return nil, xerrors.Errorf("received non-text/plain content type from %s: %s", twtxtURL, contentType)
+		return nil, fmt.Errorf("received non-text/plain content type from %s: %s", twtxtURL, contentType)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to read response body from %s: %w", twtxtURL, err)
+		return nil, fmt.Errorf("unable to read response body from %s: %w", twtxtURL, err)
 	}
 
 	bodySplit := strings.Split(string(body), "\n")

@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/gbmor/getwtxt-ng/common"
-	"golang.org/x/xerrors"
 )
 
 // User represents a single twtxt.txt feed.
@@ -67,7 +66,7 @@ func (u *User) GeneratePasscode() (string, error) {
 func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	userURL = strings.TrimSpace(userURL)
 	if userURL == "" {
-		return nil, xerrors.New("empty user URL provided")
+		return nil, errors.New("empty user URL provided")
 	}
 
 	user := User{}
@@ -77,7 +76,7 @@ func (d *DB) GetUserByURL(userURL string) (*User, error) {
 	stmt := "SELECT * FROM users WHERE url = ?"
 	err := d.conn.QueryRow(stmt, userURL).Scan(&user.ID, &user.URL, &user.Nick, &user.PasscodeHash, &dtRaw, &lsRaw)
 	if err != nil {
-		return nil, xerrors.Errorf("unable to query for user with URL %s: %w", userURL, err)
+		return nil, fmt.Errorf("unable to query for user with URL %s: %w", userURL, err)
 	}
 
 	user.DateTimeAdded = time.Unix(0, dtRaw)
@@ -98,7 +97,7 @@ func (d *DB) InsertUser(u *User) error {
 
 	tx, err := d.conn.Begin()
 	if err != nil {
-		return xerrors.Errorf("couldn't begin transaction to insert user: %w", err)
+		return fmt.Errorf("couldn't begin transaction to insert user: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -107,11 +106,11 @@ func (d *DB) InsertUser(u *User) error {
 	_, err = tx.Exec("INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)",
 		u.URL, u.Nick, u.PasscodeHash, u.DateTimeAdded.UnixNano())
 	if err != nil {
-		return xerrors.Errorf("when inserting user to DB: %w", err)
+		return fmt.Errorf("when inserting user to DB: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return xerrors.Errorf("error committing tx to insert user %s %s: %w", u.Nick, u.URL, err)
+		return fmt.Errorf("error committing tx to insert user %s %s: %w", u.Nick, u.URL, err)
 	}
 
 	return nil
@@ -120,12 +119,12 @@ func (d *DB) InsertUser(u *User) error {
 // DeleteUser removes a user and their tweets. Returns the number of tweets deleted.
 func (d *DB) DeleteUser(u *User) (int64, error) {
 	if u == nil || u.ID == "" {
-		return 0, xerrors.New("invalid user provided")
+		return 0, errors.New("invalid user provided")
 	}
 
 	tx, err := d.conn.Begin()
 	if err != nil {
-		return 0, xerrors.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
+		return 0, fmt.Errorf("when beginning tx to delete user %s: %w", u.URL, err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -133,18 +132,18 @@ func (d *DB) DeleteUser(u *User) (int64, error) {
 
 	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
 	res, err := tx.Exec(delTweetsStmt, u.ID)
-	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
-		return 0, xerrors.Errorf("could not delete tweets for user %s: %w", u.ID, err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("could not delete tweets for user %s: %w", u.ID, err)
 	}
 
 	delUserStmt := "DELETE FROM users WHERE id = ?"
 	_, err = tx.Exec(delUserStmt, u.ID)
 	if err != nil {
-		return 0, xerrors.Errorf("could not delete user %s: %w", u.ID, err)
+		return 0, fmt.Errorf("could not delete user %s: %w", u.ID, err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, xerrors.Errorf("when committing tx to delete user %s: %w", u.URL, err)
+		return 0, fmt.Errorf("when committing tx to delete user %s: %w", u.URL, err)
 	}
 
 	tweetsRemoved, err := res.RowsAffected()
@@ -176,7 +175,7 @@ func (d *DB) GetUsers(page, perPage int) ([]User, error) {
   					AND set_id <= ?`
 	rows, err := d.conn.Query(userStmt, idFloor, idCeil)
 	if err != nil {
-		return nil, xerrors.Errorf("when querying for users %d - %d: %w", idFloor+1, idCeil+1, err)
+		return nil, fmt.Errorf("when querying for users %d - %d: %w", idFloor+1, idCeil+1, err)
 	}
 	defer func() {
 		_ = rows.Close()
@@ -223,7 +222,7 @@ func (d *DB) SearchUsers(page, perPage int, searchTerm string) ([]User, error) {
   					AND set_id <= ?`
 	rows, err := d.conn.Query(searchStmt, searchTerm, searchTerm, idFloor, idCeil)
 	if err != nil {
-		return nil, xerrors.Errorf("when querying for users containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+		return nil, fmt.Errorf("when querying for users containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
 	}
 	defer func() {
 		_ = rows.Close()

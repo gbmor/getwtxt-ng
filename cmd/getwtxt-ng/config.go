@@ -19,6 +19,8 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -27,7 +29,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"golang.org/x/xerrors"
 )
 
 type Config struct {
@@ -68,12 +69,12 @@ type InstanceConfig struct {
 func readConfig(path string) (*Config, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, xerrors.Errorf("can't read contents of config file: %w", err)
+		return nil, fmt.Errorf("can't read contents of config file: %w", err)
 	}
 	conf := Config{}
 	_, err = toml.Decode(string(b), &conf)
 	if err != nil {
-		return nil, xerrors.Errorf("can't parse config file as toml: %w", err)
+		return nil, fmt.Errorf("can't parse config file as toml: %w", err)
 	}
 	return &conf, nil
 }
@@ -81,7 +82,7 @@ func readConfig(path string) (*Config, error) {
 // Open files, parse fetch interval, hash admin pass
 func (c *Config) parse() error {
 	if strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
-		return xerrors.New("please set admin_password in the configuration file")
+		return errors.New("please set admin_password in the configuration file")
 	}
 
 	if c.ServerConfig.EntriesPerPageMax < 20 {
@@ -93,19 +94,19 @@ func (c *Config) parse() error {
 
 	intervalParsed, err := time.ParseDuration(c.ServerConfig.FetchIntervalStr)
 	if err != nil {
-		return xerrors.Errorf("when parsing fetch interval: %w", err)
+		return fmt.Errorf("when parsing fetch interval: %w", err)
 	}
 	c.ServerConfig.FetchInterval = intervalParsed
 
 	msgLogFd, err := os.OpenFile(c.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return xerrors.Errorf("when opening message log file: %w", err)
+		return fmt.Errorf("when opening message log file: %w", err)
 	}
 	c.ServerConfig.MessageLogFd = msgLogFd
 
 	reqLogFd, err := os.OpenFile(c.ServerConfig.RequestLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return xerrors.Errorf("when opening request log file: %w", err)
+		return fmt.Errorf("when opening request log file: %w", err)
 	}
 	c.ServerConfig.RequestLogFd = reqLogFd
 
@@ -119,11 +120,11 @@ func (c *Config) reload(path string) error {
 	defer c.mu.Unlock()
 	newConf, err := readConfig(path)
 	if err != nil {
-		return xerrors.Errorf("while reloading config: %w", err)
+		return fmt.Errorf("while reloading config: %w", err)
 	}
 
 	if strings.TrimSpace(newConf.ServerConfig.AdminPassword) == "" {
-		return xerrors.New("please set admin_password in the configuration file")
+		return errors.New("please set admin_password in the configuration file")
 	}
 
 	if newConf.ServerConfig.MessageLogPath != c.ServerConfig.MessageLogPath {

@@ -21,6 +21,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"reflect"
 	"strings"
@@ -28,7 +29,6 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"golang.org/x/xerrors"
 )
 
 func TestDB_InsertTweets(t *testing.T) {
@@ -46,7 +46,7 @@ func TestDB_InsertTweets(t *testing.T) {
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 		err := mockDB.InsertTweets(populatedDBTweets)
-		if !xerrors.Is(err, sql.ErrConnDone) {
+		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
 	})
@@ -57,7 +57,7 @@ func TestDB_InsertTweets(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertTweets(populatedDBTweets)
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -70,7 +70,7 @@ func TestDB_InsertTweets(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertTweets(populatedDBTweets)
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -126,7 +126,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 		err := mockDB.ToggleTweetHiddenStatus(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime, StatusHidden)
-		if !xerrors.Is(err, sql.ErrConnDone) {
+		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
 	})
@@ -138,7 +138,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.ToggleTweetHiddenStatus(populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -199,7 +199,7 @@ func TestDB_GetTweets(t *testing.T) {
 			WithArgs(0, 20).
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.GetTweets(-1, 2)
-		if !xerrors.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
@@ -246,7 +246,7 @@ func TestDB_SearchTweets(t *testing.T) {
 			WithArgs("%foo%", 0, 20).
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.SearchTweets(1, 1, "foo")
-		if !xerrors.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})

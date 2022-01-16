@@ -21,6 +21,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"database/sql"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,7 +29,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gbmor/getwtxt-ng/common"
-	"golang.org/x/xerrors"
 )
 
 func TestDB_GetUserByURL(t *testing.T) {
@@ -57,7 +57,7 @@ func TestDB_GetUserByURL(t *testing.T) {
 			WithArgs("https://example.net/twtxt.txt").
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.GetUserByURL("https://example.net/twtxt.txt")
-		if !xerrors.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
@@ -107,7 +107,7 @@ func TestDB_InsertUser(t *testing.T) {
 	t.Run("error beginning tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 		err := mockDB.InsertUser(&testUser)
-		if !xerrors.Is(err, sql.ErrConnDone) {
+		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
 	})
@@ -119,7 +119,7 @@ func TestDB_InsertUser(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertUser(&testUser)
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -176,7 +176,7 @@ func TestDB_DeleteUser(t *testing.T) {
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
-		if !xerrors.Is(err, sql.ErrConnDone) {
+		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
 	})
@@ -188,7 +188,7 @@ func TestDB_DeleteUser(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -203,7 +203,7 @@ func TestDB_DeleteUser(t *testing.T) {
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -219,7 +219,7 @@ func TestDB_DeleteUser(t *testing.T) {
 		mock.ExpectCommit().
 			WillReturnError(sql.ErrTxDone)
 		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
-		if !xerrors.Is(err, sql.ErrTxDone) {
+		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
@@ -244,7 +244,7 @@ func TestDB_DeleteUser(t *testing.T) {
 		for rows.Next() {
 			userUrl := ""
 			err := rows.Scan(&userUrl)
-			if !xerrors.Is(err, sql.ErrNoRows) {
+			if !errors.Is(err, sql.ErrNoRows) {
 				t.Errorf("Expected row to be missing? %s", err)
 			}
 		}
@@ -268,7 +268,7 @@ func TestDB_GetUsers(t *testing.T) {
 			WithArgs(0, 20).
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.GetUsers(-1, 2)
-		if !xerrors.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
@@ -316,7 +316,7 @@ func TestDB_SearchUsers(t *testing.T) {
 			WithArgs(searchTerm, searchTerm, 0, 20).
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.SearchUsers(1, 3, "foo")
-		if !xerrors.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})

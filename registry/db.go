@@ -22,11 +22,11 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/xerrors"
 )
 
 // DB contains the database connection pool and associated settings.
@@ -47,7 +47,7 @@ type DB struct {
 func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
+		return nil, fmt.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
 	}
 
 	createUserTableStr := `CREATE TABLE IF NOT EXISTS users (
@@ -61,7 +61,7 @@ func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpCli
 	_, err = db.Exec(createUserTableStr)
 	if err != nil {
 		_ = db.Close()
-		return nil, xerrors.Errorf("while creating users table at %s :: %w", dbPath, err)
+		return nil, fmt.Errorf("while creating users table at %s :: %w", dbPath, err)
 	}
 
 	createTweetsTableStr := `CREATE TABLE IF NOT EXISTS tweets (
@@ -76,7 +76,7 @@ func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpCli
 	_, err = db.Exec(createTweetsTableStr)
 	if err != nil {
 		_ = db.Close()
-		return nil, xerrors.Errorf("while creating tweets table at %s :: %w", dbPath, err)
+		return nil, fmt.Errorf("while creating tweets table at %s :: %w", dbPath, err)
 	}
 
 	if httpClient == nil {
