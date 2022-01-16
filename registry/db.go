@@ -43,8 +43,8 @@ type DB struct {
 	conn *sql.DB
 }
 
-// InitDB initializes the registry's database, creating the appropriate tables if needed.
-func InitDB(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client) (*DB, error) {
+// InitSQLite initializes the registry's database, creating the appropriate tables if needed.
+func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, xerrors.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)

@@ -24,7 +24,7 @@ import (
 )
 
 func TestInitDB(t *testing.T) {
-	db, err := InitDB(":memory:", 20, 1000, nil)
+	db, err := InitSQLite(":memory:", 20, 1000, nil)
 	if err != nil {
 		t.Error(err.Error())
 	}

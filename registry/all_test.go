@@ -100,7 +100,7 @@ func getDBMocker(t *testing.T) (*DB, sqlmock.Sqlmock) {
 // test data loaded into the tables.
 func getPopulatedDB(t *testing.T) *DB {
 	t.Helper()
-	db, err := InitDB(":memory:", 20, 1000, nil)
+	db, err := InitSQLite(":memory:", 20, 1000, nil)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
