@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -34,6 +35,7 @@ import (
 func TestDB_GetUserByURL(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
 	memDB := getPopulatedDB(t)
+	ctx := context.Background()
 	defer func() {
 		if err := memDB.conn.Close(); err != nil {
 			t.Error(err.Error())
@@ -42,7 +44,7 @@ func TestDB_GetUserByURL(t *testing.T) {
 
 	t.Run("invalid user URL", func(t *testing.T) {
 		db := DB{}
-		_, err := db.GetUserByURL("    ")
+		_, err := db.GetUserByURL(ctx, "    ")
 		if err == nil {
 			t.Error("expected error, got nil")
 			return
@@ -56,19 +58,28 @@ func TestDB_GetUserByURL(t *testing.T) {
 		mock.ExpectQuery("SELECT * FROM users WHERE url = ?").
 			WithArgs("https://example.net/twtxt.txt").
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.GetUserByURL("https://example.net/twtxt.txt")
+		_, err := mockDB.GetUserByURL(ctx, "https://example.net/twtxt.txt")
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
 
 	t.Run("get a user successfully", func(t *testing.T) {
-		out, err := memDB.GetUserByURL("https://example.com/twtxt.txt")
+		out, err := memDB.GetUserByURL(ctx, "https://example.com/twtxt.txt")
 		if err != nil {
 			t.Error(err.Error())
 		}
 		if out.Nick != "foobar" {
 			t.Errorf("Expected nick 'foobar', got '%s'", out.Nick)
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := memDB.GetUserByURL(ctx, "https://example.com/twtxt.txt")
+		if err == nil {
+			t.Error("expected error, got none")
 		}
 	})
 
@@ -80,6 +91,7 @@ func TestDB_GetUserByURL(t *testing.T) {
 func TestDB_InsertUser(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
 	memDB := getPopulatedDB(t)
+	ctx := context.Background()
 
 	passcodeHash, err := common.HashPass("abcdefghij0123456789")
 	if err != nil {
@@ -95,7 +107,7 @@ func TestDB_InsertUser(t *testing.T) {
 
 	t.Run("invalid params provided", func(t *testing.T) {
 		db := DB{}
-		err := db.InsertUser(nil)
+		err := db.InsertUser(ctx, nil)
 		if err == nil {
 			t.Error("Expected error, but got nil")
 		}
@@ -106,7 +118,7 @@ func TestDB_InsertUser(t *testing.T) {
 
 	t.Run("error beginning tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
-		err := mockDB.InsertUser(&testUser)
+		err := mockDB.InsertUser(ctx, &testUser)
 		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
@@ -118,21 +130,21 @@ func TestDB_InsertUser(t *testing.T) {
 			WithArgs(testUser.URL, testUser.Nick, sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		err := mockDB.InsertUser(&testUser)
+		err := mockDB.InsertUser(ctx, &testUser)
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
 
 	t.Run("fail to insert user, dupe", func(t *testing.T) {
-		err := memDB.InsertUser(&populatedDBUsers[0])
+		err := memDB.InsertUser(ctx, &populatedDBUsers[0])
 		if err == nil {
 			t.Error("Expected error inserting duplicate user, got nil")
 		}
 	})
 
 	t.Run("insert new user", func(t *testing.T) {
-		err := memDB.InsertUser(&testUser)
+		err := memDB.InsertUser(ctx, &testUser)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -154,6 +166,15 @@ func TestDB_InsertUser(t *testing.T) {
 		}
 	})
 
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := memDB.InsertUser(ctx, &testUser)
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+	})
+
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err.Error())
 	}
@@ -162,12 +183,13 @@ func TestDB_InsertUser(t *testing.T) {
 func TestDB_DeleteUser(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	delTweetsStmt := "DELETE FROM tweets WHERE user_id = ?"
 	delUserStmt := "DELETE FROM users WHERE id = ?"
 
 	t.Run("invalid user info", func(t *testing.T) {
 		emptyUser := User{}
-		_, err := mockDB.DeleteUser(&emptyUser)
+		_, err := mockDB.DeleteUser(ctx, &emptyUser)
 		if !strings.Contains(err.Error(), "invalid user provided") {
 			t.Errorf("Expected invalid user error, got: %s", err)
 		}
@@ -175,7 +197,7 @@ func TestDB_DeleteUser(t *testing.T) {
 
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
-		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
+		_, err := mockDB.DeleteUser(ctx, &populatedDBUsers[0])
 		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
@@ -187,7 +209,7 @@ func TestDB_DeleteUser(t *testing.T) {
 			WithArgs(populatedDBUsers[0].ID).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
+		_, err := mockDB.DeleteUser(ctx, &populatedDBUsers[0])
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
@@ -202,7 +224,7 @@ func TestDB_DeleteUser(t *testing.T) {
 			WithArgs(populatedDBUsers[0].ID).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
+		_, err := mockDB.DeleteUser(ctx, &populatedDBUsers[0])
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
@@ -218,14 +240,14 @@ func TestDB_DeleteUser(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(23, 7))
 		mock.ExpectCommit().
 			WillReturnError(sql.ErrTxDone)
-		_, err := mockDB.DeleteUser(&populatedDBUsers[0])
+		_, err := mockDB.DeleteUser(ctx, &populatedDBUsers[0])
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
 
 	t.Run("successful", func(t *testing.T) {
-		tweets, err := memDB.DeleteUser(&populatedDBUsers[0])
+		tweets, err := memDB.DeleteUser(ctx, &populatedDBUsers[0])
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -250,6 +272,15 @@ func TestDB_DeleteUser(t *testing.T) {
 		}
 	})
 
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := memDB.DeleteUser(ctx, &populatedDBUsers[0])
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+	})
+
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err.Error())
 	}
@@ -258,6 +289,7 @@ func TestDB_DeleteUser(t *testing.T) {
 func TestDB_GetUsers(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	userStmt := `SELECT id, url, nick, dt_added, last_sync
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users)
 					WHERE set_id > ?
@@ -267,7 +299,7 @@ func TestDB_GetUsers(t *testing.T) {
 		mock.ExpectQuery(userStmt).
 			WithArgs(0, 20).
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.GetUsers(-1, 2)
+		_, err := mockDB.GetUsers(ctx, -1, 2)
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
@@ -279,7 +311,7 @@ func TestDB_GetUsers(t *testing.T) {
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "url", "nick", "dt_added", "last_sync"}).
 					AddRow("1", "https://example.com", "foobar", "thirty five o'clock", "sync time"))
-		out, err := mockDB.GetUsers(0, 2000)
+		out, err := mockDB.GetUsers(ctx, 0, 2000)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -289,12 +321,21 @@ func TestDB_GetUsers(t *testing.T) {
 	})
 
 	t.Run("get users", func(t *testing.T) {
-		out, err := memDB.GetUsers(0, 20)
+		out, err := memDB.GetUsers(ctx, 0, 20)
 		if err != nil {
 			t.Error(err.Error())
 		}
 		if len(out) != len(populatedDBUsers) {
 			t.Errorf("Expected %d tweets, got %d", len(populatedDBUsers), len(out))
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := memDB.GetUsers(ctx, 0, 20)
+		if err == nil {
+			t.Error("expected error, got none")
 		}
 	})
 
@@ -305,6 +346,7 @@ func TestDB_GetUsers(t *testing.T) {
 
 func TestDB_SearchUsers(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	searchTerm := "%foo%"
 	searchStmt := `SELECT id, url, nick, dt_added, last_sync
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt_added DESC) AS set_id FROM users WHERE nick LIKE ? OR url LIKE ?)
@@ -315,7 +357,7 @@ func TestDB_SearchUsers(t *testing.T) {
 		mock.ExpectQuery(searchStmt).
 			WithArgs(searchTerm, searchTerm, 0, 20).
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.SearchUsers(1, 3, "foo")
+		_, err := mockDB.SearchUsers(ctx, 1, 3, "foo")
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
@@ -326,7 +368,7 @@ func TestDB_SearchUsers(t *testing.T) {
 			WithArgs(searchTerm, searchTerm, 0, 1000).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "url", "nick", "dt_added", "last_sync"}).
 				AddRow(5, "https://example.com/twtxt.txt", "foo", "eleventy-three o'clock", 0))
-		out, err := mockDB.SearchUsers(0, 5000, "foo")
+		out, err := mockDB.SearchUsers(ctx, 0, 5000, "foo")
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -338,7 +380,7 @@ func TestDB_SearchUsers(t *testing.T) {
 	t.Run("search", func(t *testing.T) {
 		searchTerm := "example"
 		memDB := getPopulatedDB(t)
-		out, err := memDB.SearchUsers(1, 20, searchTerm)
+		out, err := memDB.SearchUsers(ctx, 1, 20, searchTerm)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -351,6 +393,16 @@ func TestDB_SearchUsers(t *testing.T) {
 				t.Error("tweets out of order")
 			}
 			lastDT = user.DateTimeAdded.UnixNano()
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		memDB := getPopulatedDB(t)
+		_, err := memDB.SearchUsers(ctx, 1, 20, searchTerm)
+		if err == nil {
+			t.Error("expected error, got none")
 		}
 	})
 

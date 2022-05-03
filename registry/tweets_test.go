@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -34,10 +35,11 @@ import (
 func TestDB_InsertTweets(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	insertStmt := "INSERT INTO tweets (user_id, dt, body) VALUES(?,?,?)"
 
 	t.Run("no tweets provided", func(t *testing.T) {
-		err := mockDB.InsertTweets(nil)
+		err := mockDB.InsertTweets(ctx, nil)
 		if !strings.Contains(err.Error(), "invalid tweets provided") {
 			t.Errorf("Expected invalid tweets error, got: %s", err)
 		}
@@ -45,7 +47,7 @@ func TestDB_InsertTweets(t *testing.T) {
 
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
-		err := mockDB.InsertTweets(populatedDBTweets)
+		err := mockDB.InsertTweets(ctx, populatedDBTweets)
 		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
@@ -56,7 +58,7 @@ func TestDB_InsertTweets(t *testing.T) {
 		mock.ExpectPrepare(insertStmt).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		err := mockDB.InsertTweets(populatedDBTweets)
+		err := mockDB.InsertTweets(ctx, populatedDBTweets)
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
@@ -69,14 +71,14 @@ func TestDB_InsertTweets(t *testing.T) {
 			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.UnixNano(), populatedDBTweets[0].Body).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		err := mockDB.InsertTweets(populatedDBTweets)
+		err := mockDB.InsertTweets(ctx, populatedDBTweets)
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
 
 	t.Run("insert tweets", func(t *testing.T) {
-		err := memDB.InsertTweets(populatedDBTweets)
+		err := memDB.InsertTweets(ctx, populatedDBTweets)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -106,6 +108,15 @@ func TestDB_InsertTweets(t *testing.T) {
 		}
 	})
 
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := memDB.InsertTweets(ctx, populatedDBTweets)
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+	})
+
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err.Error())
 	}
@@ -114,10 +125,11 @@ func TestDB_InsertTweets(t *testing.T) {
 func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	toggleStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
 
 	t.Run("invalid params", func(t *testing.T) {
-		err := mockDB.ToggleTweetHiddenStatus("", time.Time{}, StatusHidden)
+		err := mockDB.ToggleTweetHiddenStatus(ctx, "", time.Time{}, StatusHidden)
 		if !strings.Contains(err.Error(), "invalid user ID") {
 			t.Errorf("Expected invalid params error, got: %s", err)
 		}
@@ -125,7 +137,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 
 	t.Run("fail to begin tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
-		err := mockDB.ToggleTweetHiddenStatus(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime, StatusHidden)
+		err := mockDB.ToggleTweetHiddenStatus(ctx, populatedDBTweets[0].ID, populatedDBTweets[0].DateTime, StatusHidden)
 		if !errors.Is(err, sql.ErrConnDone) {
 			t.Errorf("Expected sql.ErrConnDone, got: %s", err)
 		}
@@ -137,14 +149,14 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 			WithArgs(StatusHidden, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime.UnixNano()).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
-		err := mockDB.ToggleTweetHiddenStatus(populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
+		err := mockDB.ToggleTweetHiddenStatus(ctx, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
 		if !errors.Is(err, sql.ErrTxDone) {
 			t.Errorf("Expected sql.ErrTxDone, got: %s", err)
 		}
 	})
 
 	t.Run("switch tweet visibility", func(t *testing.T) {
-		err := memDB.ToggleTweetHiddenStatus(populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
+		err := memDB.ToggleTweetHiddenStatus(ctx, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -181,6 +193,15 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 		}
 	})
 
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := memDB.ToggleTweetHiddenStatus(ctx, populatedDBTweets[0].UserID, populatedDBTweets[0].DateTime, StatusHidden)
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+	})
+
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err.Error())
 	}
@@ -189,6 +210,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 func TestDB_GetTweets(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	tweetStmt := `SELECT id, user_id, dt, body, hidden
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets)
 					WHERE set_id > ?
@@ -198,7 +220,7 @@ func TestDB_GetTweets(t *testing.T) {
 		mock.ExpectQuery(tweetStmt).
 			WithArgs(0, 20).
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.GetTweets(-1, 2)
+		_, err := mockDB.GetTweets(ctx, -1, 2)
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
@@ -210,7 +232,7 @@ func TestDB_GetTweets(t *testing.T) {
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "user_id", "dt", "body", "hidden"}).
 					AddRow("1", "2", "thirty five o'clock", "hello there", 0))
-		out, err := mockDB.GetTweets(0, 2000)
+		out, err := mockDB.GetTweets(ctx, 0, 2000)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -220,12 +242,21 @@ func TestDB_GetTweets(t *testing.T) {
 	})
 
 	t.Run("get tweets", func(t *testing.T) {
-		out, err := memDB.GetTweets(0, 20)
+		out, err := memDB.GetTweets(ctx, 0, 20)
 		if err != nil {
 			t.Error(err.Error())
 		}
 		if len(out) != len(populatedDBTweets) {
 			t.Errorf("Expected %d tweets, got %d", len(populatedDBTweets), len(out))
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := memDB.GetTweets(ctx, 0, 20)
+		if err == nil {
+			t.Error("expected error, got none")
 		}
 	})
 
@@ -236,6 +267,7 @@ func TestDB_GetTweets(t *testing.T) {
 
 func TestDB_SearchTweets(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
 	searchStmt := `SELECT id, user_id, dt, body, hidden
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets WHERE body LIKE ?)
 					WHERE set_id > ?
@@ -245,7 +277,7 @@ func TestDB_SearchTweets(t *testing.T) {
 		mock.ExpectQuery(searchStmt).
 			WithArgs("%foo%", 0, 20).
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.SearchTweets(1, 1, "foo")
+		_, err := mockDB.SearchTweets(ctx, 1, 1, "foo")
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
@@ -257,7 +289,7 @@ func TestDB_SearchTweets(t *testing.T) {
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "user_id", "dt", "body", "hidden"}).
 					AddRow("1", "2", "thirty five o'clock", "hello there", 0))
-		out, err := mockDB.SearchTweets(0, 2000, "foo")
+		out, err := mockDB.SearchTweets(ctx, 0, 2000, "foo")
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -270,7 +302,7 @@ func TestDB_SearchTweets(t *testing.T) {
 		searchTerm := "o"
 		memDB := getPopulatedDB(t)
 		memDB.EntriesPerPageMin = 1
-		out, err := memDB.SearchTweets(1, 10, searchTerm)
+		out, err := memDB.SearchTweets(ctx, 1, 10, searchTerm)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -283,6 +315,18 @@ func TestDB_SearchTweets(t *testing.T) {
 				t.Error("tweets out of order")
 			}
 			lastDT = tweet.DateTime.UnixNano()
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		memDB := getPopulatedDB(t)
+		memDB.EntriesPerPageMin = 1
+		searchTerm := "o"
+		_, err := memDB.SearchTweets(ctx, 1, 10, searchTerm)
+		if err == nil {
+			t.Error("expected error, got none")
 		}
 	})
 

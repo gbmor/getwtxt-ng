@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -44,7 +45,7 @@ const (
 )
 
 // InsertTweets adds a collection of tweets to the database.
-func (d *DB) InsertTweets(tweets []Tweet) error {
+func (d *DB) InsertTweets(ctx context.Context, tweets []Tweet) error {
 	if len(tweets) == 0 {
 		return errors.New("invalid tweets provided")
 	}
@@ -67,7 +68,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 	}()
 
 	for _, t := range tweets {
-		if _, err := stmt.Exec(t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
+		if _, err := stmt.ExecContext(ctx, t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
 			return fmt.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
@@ -80,7 +81,7 @@ func (d *DB) InsertTweets(tweets []Tweet) error {
 }
 
 // ToggleTweetHiddenStatus changes the provided tweet's hidden status.
-func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status TweetVisibilityStatus) error {
+func (d *DB) ToggleTweetHiddenStatus(ctx context.Context, userID string, timestamp time.Time, status TweetVisibilityStatus) error {
 	if userID == "" || timestamp.IsZero() {
 		return errors.New("invalid user ID or tweet timestamp provided")
 	}
@@ -94,7 +95,7 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 	}()
 
 	toggleStmt := "UPDATE tweets SET hidden = ? WHERE user_id = ? AND dt = ?"
-	if _, err := tx.Exec(toggleStmt, status, userID, timestamp.UnixNano()); err != nil {
+	if _, err := tx.ExecContext(ctx, toggleStmt, status, userID, timestamp.UnixNano()); err != nil {
 		return fmt.Errorf("error hiding tweet by %s at %s: %w", userID, timestamp, err)
 	}
 
@@ -106,7 +107,7 @@ func (d *DB) ToggleTweetHiddenStatus(userID string, timestamp time.Time, status 
 }
 
 // GetTweets gets a page's worth of tweets.
-func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
+func (d *DB) GetTweets(ctx context.Context, page, perPage int) ([]Tweet, error) {
 	page--
 	if perPage < d.EntriesPerPageMin {
 		perPage = d.EntriesPerPageMin
@@ -124,7 +125,7 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets)
 					WHERE set_id > ?
   					AND set_id <= ?`
-	rows, err := d.conn.Query(tweetStmt, idFloor, idCeil)
+	rows, err := d.conn.QueryContext(ctx, tweetStmt, idFloor, idCeil)
 	if err != nil {
 		return nil, fmt.Errorf("when querying for tweets %d - %d: %w", idFloor+1, idCeil+1, err)
 	}
@@ -149,7 +150,7 @@ func (d *DB) GetTweets(page, perPage int) ([]Tweet, error) {
 }
 
 // SearchTweets searches for a given term in tweet bodies and returns a page worth.
-func (d *DB) SearchTweets(page, perPage int, searchTerm string) ([]Tweet, error) {
+func (d *DB) SearchTweets(ctx context.Context, page, perPage int, searchTerm string) ([]Tweet, error) {
 	// SQLite expects the format %term% for arbitrary characters on either side of the search term.
 	searchTerm = fmt.Sprintf("%%%s%%", searchTerm)
 	page--
@@ -169,7 +170,7 @@ func (d *DB) SearchTweets(page, perPage int, searchTerm string) ([]Tweet, error)
 					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id FROM tweets WHERE body LIKE ?)
 					WHERE set_id > ?
   					AND set_id <= ?`
-	rows, err := d.conn.Query(searchStmt, searchTerm, idFloor, idCeil)
+	rows, err := d.conn.QueryContext(ctx, searchStmt, searchTerm, idFloor, idCeil)
 	if err != nil {
 		return nil, fmt.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
 	}
