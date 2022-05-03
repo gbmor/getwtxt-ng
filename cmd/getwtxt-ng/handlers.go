@@ -26,7 +26,9 @@ import (
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config) {
-	if err := common.HttpWriteLn([]byte("200 OK"), w, http.StatusOK, common.MimePlain); err != nil {
-		log.Printf("When writing to HTTP: %s\n", err)
+	out := []byte("200 OK")
+	w.Header().Set("Content-Type", common.MimePlain)
+	if _, err := w.Write(out); err != nil {
+		log.Printf("Index Handler: %s\n", err)
 	}
 }

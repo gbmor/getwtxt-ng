@@ -53,7 +53,7 @@ func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 }
 
 func setUpRoutes(r *mux.Router, conf *Config) {
-	r.HandleFunc("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexHandler(w, r, conf)
-	})).Methods("HEAD", "GET")
+	}).Methods("HEAD", "GET")
 }

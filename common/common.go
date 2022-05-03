@@ -21,10 +21,8 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
-	"bytes"
 	"log"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -48,19 +46,6 @@ func HashPass(s string) (string, error) {
 	}
 
 	return string(h), nil
-}
-
-// HttpWriteLn writes a line to the provided http.ResponseWriter with an appended newline.
-// Sends the provided HTTP status code.
-func HttpWriteLn(in []byte, w http.ResponseWriter, code int, mime string) error {
-	if !bytes.HasSuffix(in, []byte("\n")) {
-		in = append(in, byte('\n'))
-	}
-	w.Header().Set("Content-Type", mime)
-	w.WriteHeader(code)
-	_, err := w.Write(in)
-
-	return err
 }
 
 // IsValidURL returns true if the provided URL is a valid-looking HTTP or HTTPS URL.

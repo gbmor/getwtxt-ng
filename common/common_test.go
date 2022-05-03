@@ -20,10 +20,6 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -49,27 +45,6 @@ func TestHashPass(t *testing.T) {
 			t.Error(err.Error())
 		}
 	})
-}
-
-func TestHttpWriteLn(t *testing.T) {
-	w := httptest.NewRecorder()
-	in := []byte("testing")
-	if err := HttpWriteLn(in, w, http.StatusOK, MimePlain); err != nil {
-		t.Error(err.Error())
-	}
-	in = append(in, byte('\n'))
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %d", res.StatusCode)
-	}
-	bdy, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		t.Error(err.Error())
-	}
-	res.Body.Close()
-	if !reflect.DeepEqual(bdy, in) {
-		t.Errorf("Got %v, expected %v", bdy, in)
-	}
 }
 
 func TestIsValidURL(t *testing.T) {
