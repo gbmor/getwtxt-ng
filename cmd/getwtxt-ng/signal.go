@@ -19,13 +19,14 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func signalWatcher(conf *Config) {
+func signalWatcher(conf *Config, logger *log.Logger) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGHUP)
 
@@ -34,23 +35,23 @@ func signalWatcher(conf *Config) {
 			switch sig {
 			case syscall.SIGINT:
 				conf.mu.Lock()
-				log.Printf("Caught %s\n", sig)
-				log.Println("Closing log files and switching to stderr")
-				log.SetOutput(os.Stderr)
+				logger.Infof("Caught %s\n", sig)
+				logger.Info("Closing log files and switching to stderr")
+				logger.SetOutput(os.Stderr)
 
 				if err := conf.ServerConfig.MessageLogFd.Close(); err != nil {
-					log.Printf("When closing message log: %s\n", err)
+					logger.Infof("When closing message log: %s\n", err)
 				}
 				if err := conf.ServerConfig.RequestLogFd.Close(); err != nil {
-					log.Printf("When closing request log: %s\n", err)
+					logger.Infof("When closing request log: %s\n", err)
 				}
 
 				os.Exit(130)
 
 			case syscall.SIGHUP:
-				log.Printf("Caught %s: reloading configuration...\n", sig)
-				if err := conf.reload(*flagConfig); err != nil {
-					log.Println(err.Error())
+				logger.Infof("Caught %s: reloading configuration...\n", sig)
+				if err := conf.reload(*flagConfig, logger); err != nil {
+					logger.Infof(err.Error())
 				}
 			}
 		}

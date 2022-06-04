@@ -24,6 +24,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Test_readConfig(t *testing.T) {
@@ -212,7 +214,7 @@ func TestConfig_reload(t *testing.T) {
 		}
 		fnPath := fmt.Sprintf("%s/%x", os.TempDir(), b)
 		oldConf := &Config{}
-		if err := oldConf.reload(fnPath); !strings.Contains(err.Error(), "while reloading config") {
+		if err := oldConf.reload(fnPath, log.StandardLogger()); !strings.Contains(err.Error(), "while reloading config") {
 			t.Errorf("Expected error opening file, got %s", err)
 		}
 	})
@@ -231,7 +233,7 @@ func TestConfig_reload(t *testing.T) {
 		contents := "[server_config]\nbind_ip = \"127.0.0.1\"\nadmin_password = \"foobar\""
 		_, _ = fd.Write([]byte(contents))
 		_ = fd.Close()
-		if err := oldConf.reload(tmpFilePath); err != nil {
+		if err := oldConf.reload(tmpFilePath, log.StandardLogger()); err != nil {
 			t.Error(err.Error())
 		}
 	})
@@ -254,7 +256,7 @@ func TestConfig_reload(t *testing.T) {
 						admin_password = "foobar"`
 		_, _ = fd.Write([]byte(contents))
 		_ = fd.Close()
-		if err := oldConf.reload(tmpFilePath); err != nil {
+		if err := oldConf.reload(tmpFilePath, log.StandardLogger()); err != nil {
 			t.Error(err.Error())
 		}
 	})

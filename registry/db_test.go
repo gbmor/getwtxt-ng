@@ -21,10 +21,12 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 
 import (
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func TestInitDB(t *testing.T) {
-	db, err := InitSQLite(":memory:", 20, 1000, nil)
+	db, err := InitSQLite(":memory:", 20, 1000, nil, log.StandardLogger())
 	if err != nil {
 		t.Error(err.Error())
 	}

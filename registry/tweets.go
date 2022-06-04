@@ -23,7 +23,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -139,7 +138,7 @@ func (d *DB) GetTweets(ctx context.Context, page, perPage int) ([]Tweet, error) 
 		thisTweet := Tweet{}
 		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &dt, &thisTweet.Body, &thisTweet.Hidden)
 		if err != nil {
-			log.Printf("when querying for tweets %d - %d: %s", idFloor+1, idCeil+1, err)
+			d.logger.Debugf("when querying for tweets %d - %d: %s", idFloor+1, idCeil+1, err)
 			continue
 		}
 		thisTweet.DateTime = time.Unix(0, dt)
@@ -184,7 +183,7 @@ func (d *DB) SearchTweets(ctx context.Context, page, perPage int, searchTerm str
 		thisTweet := Tweet{}
 		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &dt, &thisTweet.Body, &thisTweet.Hidden)
 		if err != nil {
-			log.Printf("when querying for tweets containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
+			d.logger.Debugf("when querying for tweets containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
 			continue
 		}
 		thisTweet.DateTime = time.Unix(0, dt)

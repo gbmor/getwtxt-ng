@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -149,7 +148,7 @@ func (d *DB) DeleteUser(ctx context.Context, u *User) (int64, error) {
 
 	tweetsRemoved, err := res.RowsAffected()
 	if err != nil {
-		log.Printf("When getting number of tweets deleted when removing user %s: %s", u.URL, err)
+		d.logger.Debugf("When getting number of tweets deleted when removing user %s: %s", u.URL, err)
 	}
 
 	return tweetsRemoved, nil
@@ -189,7 +188,7 @@ func (d *DB) GetUsers(ctx context.Context, page, perPage int) ([]User, error) {
 		thisUser := User{}
 		err := rows.Scan(&thisUser.ID, &thisUser.URL, &thisUser.Nick, &dt, &ls)
 		if err != nil {
-			log.Printf("when querying for users %d - %d: %s", idFloor+1, idCeil+1, err)
+			d.logger.Debugf("when querying for users %d - %d: %s", idFloor+1, idCeil+1, err)
 			continue
 		}
 		thisUser.DateTimeAdded = time.Unix(0, dt)
@@ -236,7 +235,7 @@ func (d *DB) SearchUsers(ctx context.Context, page, perPage int, searchTerm stri
 		thisUser := User{}
 		err := rows.Scan(&thisUser.ID, &thisUser.URL, &thisUser.Nick, &dt, &dtSync)
 		if err != nil {
-			log.Printf("when querying for users containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
+			d.logger.Debugf("when querying for users containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
 			continue
 		}
 		thisUser.DateTimeAdded = time.Unix(0, dt)

@@ -27,6 +27,7 @@ request_log = "request.log"
 fetch_interval = "1h"
 assets_directory = "assets"
 static_files_directory = "static"
+debug_mode = false
 
 # max must be at least 20, min must be at least 10
 entries_per_page_max = 1000

@@ -19,16 +19,16 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gbmor/getwtxt-ng/common"
+	log "github.com/sirupsen/logrus"
 )
 
 func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config) {
 	out := []byte("200 OK")
 	w.Header().Set("Content-Type", common.MimePlain)
 	if _, err := w.Write(out); err != nil {
-		log.Printf("Index Handler: %s\n", err)
+		log.Debugf("Index Handler: %s\n", err)
 	}
 }

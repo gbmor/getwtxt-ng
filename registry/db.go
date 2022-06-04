@@ -27,6 +27,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 // DB contains the database connection pool and associated settings.
@@ -40,11 +41,12 @@ type DB struct {
 	// Client is the default HTTP client, which has a 5-second timeout.
 	Client *http.Client
 
-	conn *sql.DB
+	logger *log.Logger
+	conn   *sql.DB
 }
 
 // InitSQLite initializes the registry's database, creating the appropriate tables if needed.
-func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client) (*DB, error) {
+func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client, logger *log.Logger) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("while initializing connection to sqlite3 db at %s :: %w", dbPath, err)
@@ -87,6 +89,7 @@ func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpCli
 
 	dbWrap := DB{
 		conn:              db,
+		logger:            logger,
 		EntriesPerPageMin: minEntriesPerPage,
 		EntriesPerPageMax: maxEntriesPerPage,
 		Client:            httpClient,

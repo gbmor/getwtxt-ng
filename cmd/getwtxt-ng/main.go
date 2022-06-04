@@ -20,7 +20,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
+	log "github.com/sirupsen/logrus"
 )
 
 var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config file")
@@ -45,8 +45,13 @@ func main() {
 		fmt.Printf("Config at %s has errors: %s\n", *flagConfig, err)
 		os.Exit(1)
 	}
+
+	if conf.ServerConfig.DebugMode {
+		log.SetLevel(log.DebugLevel)
+	}
 	log.SetOutput(conf.ServerConfig.MessageLogFd)
-	signalWatcher(conf)
+
+	signalWatcher(conf, log.StandardLogger())
 
 	r := mux.NewRouter()
 	loggedHandler := handlers.CombinedLoggingHandler(conf.ServerConfig.RequestLogFd, r)
@@ -62,5 +67,7 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
-	log.Println(s.ListenAndServe())
+
+	err = s.ListenAndServe()
+	log.Infof("%s", err)
 }

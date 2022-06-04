@@ -22,13 +22,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -54,6 +54,7 @@ type ServerConfig struct {
 	EntriesPerPageMin        int    `toml:"entries_per_page_min"`
 	HTTPRequestsPerMinute    int    `toml:"http_requests_per_minute"`
 	HTTPRequestsBurstMax     int    `toml:"http_requests_max_burst"`
+	DebugMode                bool   `toml:"debug_mode"`
 }
 
 // InstanceConfig holds the values that will be filled in on the landing page template.
@@ -115,7 +116,7 @@ func (c *Config) parse() error {
 
 // Reloads "safe" configuration options.
 // To be called on SIGHUP.
-func (c *Config) reload(path string) error {
+func (c *Config) reload(path string, logger *log.Logger) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	newConf, err := readConfig(path)
@@ -130,21 +131,21 @@ func (c *Config) reload(path string) error {
 	if newConf.ServerConfig.MessageLogPath != c.ServerConfig.MessageLogPath {
 		msgLogFd, err := os.OpenFile(newConf.ServerConfig.MessageLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			log.Printf("When opening new message log file on config reload: %s", err)
+			logger.Infof("When opening new message log file on config reload: %s", err)
 		} else {
 			oldMsgLogFd := c.ServerConfig.MessageLogFd
 			c.ServerConfig.MessageLogFd = msgLogFd
 			c.ServerConfig.MessageLogPath = newConf.ServerConfig.MessageLogPath
 			log.SetOutput(c.ServerConfig.MessageLogFd)
 			if err := oldMsgLogFd.Close(); err != nil {
-				log.Printf("When closing old message log fd on config reload: %s", err)
+				logger.Infof("When closing old message log fd on config reload: %s", err)
 			}
 		}
 	}
 
 	fetchInterval, err := time.ParseDuration(newConf.ServerConfig.FetchIntervalStr)
 	if err != nil {
-		log.Printf("Couldn't parse new fetch interval when reloading config: %s", err)
+		logger.Infof("Couldn't parse new fetch interval when reloading config: %s", err)
 	} else {
 		c.ServerConfig.FetchInterval = fetchInterval
 	}
@@ -160,6 +161,12 @@ func (c *Config) reload(path string) error {
 	}
 	if c.ServerConfig.EntriesPerPageMin < 10 {
 		c.ServerConfig.EntriesPerPageMin = 10
+	}
+
+	if c.ServerConfig.DebugMode {
+		logger.SetLevel(log.DebugLevel)
+	} else {
+		logger.SetLevel(log.InfoLevel)
 	}
 
 	return nil

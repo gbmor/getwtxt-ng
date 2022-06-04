@@ -26,6 +26,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func TestDB_FetchTwtxt(t *testing.T) {
@@ -47,15 +49,19 @@ func TestDB_FetchTwtxt(t *testing.T) {
 		skipDeepEqual bool
 	}{
 		{
-			name:    "empty url",
-			db:      &DB{},
+			name: "empty url",
+			db: &DB{
+				logger: log.StandardLogger(),
+			},
 			args:    args{},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "nil http client",
-			db:   &DB{},
+			db: &DB{
+				logger: log.StandardLogger(),
+			},
 			args: args{
 				twtxtURL: "https://example.org/twtxt.txt",
 			},
@@ -66,6 +72,7 @@ func TestDB_FetchTwtxt(t *testing.T) {
 			name: "304 not modified",
 			db: &DB{
 				Client: client,
+				logger: log.StandardLogger(),
 			},
 			args: args{
 				twtxtURL: fmt.Sprintf("%s/twtxt/304", srv.URL),
@@ -77,6 +84,7 @@ func TestDB_FetchTwtxt(t *testing.T) {
 			name: "404 not found",
 			db: &DB{
 				Client: client,
+				logger: log.StandardLogger(),
 			},
 			args: args{
 				twtxtURL: fmt.Sprintf("%s/twtxt/404", srv.URL),
@@ -88,6 +96,7 @@ func TestDB_FetchTwtxt(t *testing.T) {
 			name: "content-type other than text/plain",
 			db: &DB{
 				Client: client,
+				logger: log.StandardLogger(),
 			},
 			args: args{
 				twtxtURL: fmt.Sprintf("%s/twtxt/json", srv.URL),
@@ -99,6 +108,7 @@ func TestDB_FetchTwtxt(t *testing.T) {
 			name: "success with soft fail",
 			db: &DB{
 				Client: client,
+				logger: log.StandardLogger(),
 			},
 			args: args{
 				twtxtURL: fmt.Sprintf("%s/twtxt.txt", srv.URL),

@@ -24,5 +24,5 @@ clean:
 .PHONY: test
 test:
 	@printf "%s\n" "Running tests."
-	go test ./...
+	go test -race ./...
 	@printf "\n"

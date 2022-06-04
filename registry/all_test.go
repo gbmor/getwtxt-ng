@@ -28,6 +28,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gbmor/getwtxt-ng/common"
+	log "github.com/sirupsen/logrus"
 )
 
 var testTwtxtFile = fmt.Sprintf(`
@@ -93,6 +94,7 @@ func getDBMocker(t *testing.T) (*DB, sqlmock.Sqlmock) {
 		conn:              dbConn,
 		EntriesPerPageMax: 1000,
 		EntriesPerPageMin: 20,
+		logger:            log.StandardLogger(),
 	}
 
 	return &dbWrap, mock
@@ -102,7 +104,7 @@ func getDBMocker(t *testing.T) (*DB, sqlmock.Sqlmock) {
 // test data loaded into the tables.
 func getPopulatedDB(t *testing.T) *DB {
 	t.Helper()
-	db, err := InitSQLite(":memory:", 20, 1000, nil)
+	db, err := InitSQLite(":memory:", 20, 1000, nil, log.StandardLogger())
 	if err != nil {
 		t.Fatal(err.Error())
 	}

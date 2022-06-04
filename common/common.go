@@ -21,11 +21,11 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
-	"log"
 	"net"
 	"net/url"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -49,13 +49,13 @@ func HashPass(s string) (string, error) {
 }
 
 // IsValidURL returns true if the provided URL is a valid-looking HTTP or HTTPS URL.
-func IsValidURL(destURL string) bool {
+func IsValidURL(destURL string, logger *log.Logger) bool {
 	if strings.TrimSpace(destURL) == "" {
 		return false
 	}
 	parsedURL, err := url.Parse(destURL)
 	if err != nil {
-		log.Printf("Error parsing URL %s: %s", destURL, err)
+		logger.Debugf("Error parsing URL %s: %s", destURL, err)
 		return false
 	}
 

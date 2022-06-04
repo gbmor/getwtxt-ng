@@ -22,7 +22,6 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -35,7 +34,7 @@ import (
 // Comments and whitespace are stripped from the response.
 // If we receive a 304, return a nil slice and a nil error.
 func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Tweet, error) {
-	if !common.IsValidURL(twtxtURL) {
+	if !common.IsValidURL(twtxtURL, d.logger) {
 		return nil, fmt.Errorf("invalid URL provided: %s", twtxtURL)
 	}
 	if d == nil || d.Client == nil {
@@ -93,7 +92,7 @@ func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Twee
 			thisTweet.DateTime, err = time.Parse(time.RFC3339, tweetHalves[0])
 		}
 		if err != nil {
-			log.Printf("Error parsing time for tweet at %s from %s: %s", tweetHalves[0], twtxtURL, err)
+			d.logger.Debugf("Error parsing time for tweet at %s from %s: %s", tweetHalves[0], twtxtURL, err)
 			continue
 		}
 

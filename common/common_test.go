@@ -22,6 +22,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -78,7 +79,7 @@ func TestIsValidURL(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.url, func(t *testing.T) {
-			out := IsValidURL(tt.url)
+			out := IsValidURL(tt.url, log.StandardLogger())
 			if out != tt.expect {
 				t.Errorf("Got %v, expected %v", out, tt.expect)
 			}
