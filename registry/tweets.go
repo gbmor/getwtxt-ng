@@ -29,11 +29,11 @@ import (
 // Tweet represents a single entry in a User's twtxt.txt file.
 // Uniqueness must be preserved over (UserID, DateTime, Body).
 type Tweet struct {
-	ID       string    `json:"id"`
-	UserID   string    `json:"user_id"`
-	DateTime time.Time `json:"datetime"`
-	Body     string    `json:"body"`
-	Hidden   int       `json:"hidden"`
+	ID       string                `json:"id"`
+	UserID   string                `json:"user_id"`
+	DateTime time.Time             `json:"datetime"`
+	Body     string                `json:"body"`
+	Hidden   TweetVisibilityStatus `json:"hidden"`
 }
 
 type TweetVisibilityStatus int
