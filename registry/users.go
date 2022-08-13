@@ -103,11 +103,18 @@ func (d *DB) InsertUser(ctx context.Context, u *User) error {
 		_ = tx.Rollback()
 	}()
 
-	_, err = tx.ExecContext(ctx, "INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)",
+	res, err := tx.ExecContext(ctx, "INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)",
 		u.URL, u.Nick, u.PasscodeHash, u.DateTimeAdded.UnixNano())
 	if err != nil {
 		return fmt.Errorf("when inserting user to DB: %w", err)
 	}
+
+	userID, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("could not retrieve new user's ID")
+	}
+
+	u.ID = fmt.Sprintf("%d", userID)
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("error committing tx to insert user %s %s: %w", u.Nick, u.URL, err)

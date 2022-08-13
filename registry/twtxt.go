@@ -80,10 +80,10 @@ func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Twee
 			continue
 		}
 
-		tweetHalves := strings.Fields(e)
+		tweetHalves := strings.Split(e, "\t")
 		thisTweet := Tweet{
 			UserID: userID,
-			Body:   tweetHalves[1],
+			Body:   strings.Join(tweetHalves[1:], "\t"),
 		}
 
 		if strings.Contains(tweetHalves[0], ".") {

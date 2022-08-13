@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gbmor/getwtxt-ng/registry"
 	"github.com/gorilla/mux"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -52,8 +53,11 @@ func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 	}
 }
 
-func setUpRoutes(r *mux.Router, conf *Config) {
+func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexHandler(w, r, conf)
 	}).Methods("HEAD", "GET")
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		addUserHandler(w, r, conf, dbConn)
+	}).Methods("POST")
 }

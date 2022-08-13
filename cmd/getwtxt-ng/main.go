@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gbmor/getwtxt-ng/common"
+	"github.com/gbmor/getwtxt-ng/registry"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
@@ -53,13 +54,23 @@ func main() {
 
 	signalWatcher(conf, log.StandardLogger())
 
+	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath,
+		conf.ServerConfig.EntriesPerPageMax,
+		conf.ServerConfig.EntriesPerPageMin,
+		nil,
+		log.StandardLogger())
+	if err != nil {
+		log.Errorf("Could not initialize database: %s", err)
+		os.Exit(1)
+	}
+
 	r := mux.NewRouter()
 	loggedHandler := handlers.CombinedLoggingHandler(conf.ServerConfig.RequestLogFd, r)
 
 	rl := getHTTPRateLimiter(conf)
 	rateLimitedHandler := rl.RateLimit(loggedHandler)
 
-	setUpRoutes(r, conf)
+	setUpRoutes(r, conf, dbConn)
 
 	s := &http.Server{
 		Handler:      rateLimitedHandler,

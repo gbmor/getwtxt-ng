@@ -2,7 +2,8 @@ PREFIX?=/usr/local
 _INSTDIR=$(PREFIX)
 BINDIR?=$(_INSTDIR)/getwtxt-ng
 #VERSION?=$(shell git describe --tags --abbrev=0)
-#GOFLAGS?=-ldflags '-X github.com/gbmor/getwtxt-ng/common.Version=${VERSION}'
+VERSION?=dev
+GOFLAGS?=-ldflags '-s -w -X github.com/gbmor/getwtxt-ng/common.Version=${VERSION}'
 
 all: clean build
 
@@ -10,7 +11,7 @@ all: clean build
 build:
 	@printf "%s\n" "Building getwtxt-ng."
 	go build $(GOFLAGS) ./cmd/getwtxt-ng
-	go build ./cmd/adminPassGen
+	go build -ldflags='-s -w' ./cmd/adminPassGen
 	@printf "\n"
 
 .PHONY: clean
