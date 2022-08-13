@@ -57,7 +57,10 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexHandler(w, r, conf)
 	}).Methods("HEAD", "GET")
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		addUserHandler(w, r, conf, dbConn)
+	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
+		plainAddUserHandler(w, r, conf, dbConn)
+	}).Methods("POST")
+	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
+		jsonAddUserHandler(w, r, conf, dbConn)
 	}).Methods("POST")
 }

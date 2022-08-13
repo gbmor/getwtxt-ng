@@ -36,7 +36,7 @@ import (
 type User struct {
 	ID            string    `json:"id"`
 	URL           string    `json:"url"`
-	Nick          string    `json:"nick"`
+	Nick          string    `json:"nickname"`
 	Passcode      string    `json:"-"`
 	PasscodeHash  string    `json:"-"`
 	DateTimeAdded time.Time `json:"datetime_added"`
