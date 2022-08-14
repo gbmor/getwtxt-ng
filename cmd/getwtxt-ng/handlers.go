@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +33,7 @@ import (
 )
 
 type JSONResponse interface {
-	addUserRespJSON
+	addUserRespJSON | []registry.Tweet | []registry.User
 }
 
 type addUserRespJSON struct {
@@ -45,6 +46,14 @@ func jsonResponseWrite[T JSONResponse](w http.ResponseWriter, body T, statusCode
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := jsonEncoder.Encode(body); err != nil {
+		log.Error(err)
+	}
+}
+
+func plainResponseWrite(w http.ResponseWriter, body string, statusCode int) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(statusCode)
+	if _, err := w.Write([]byte(body)); err != nil {
 		log.Error(err)
 	}
 }
@@ -221,4 +230,71 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 	}
 
 	jsonResponseWrite(w, response, http.StatusOK)
+}
+
+func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, format string) {
+	var err error
+	_ = r.ParseForm()
+	pageStr := r.Form.Get("page")
+	perPageStr := r.Form.Get("per_page")
+	searchTerm := r.Form.Get("q")
+
+	page := 0
+	perPage := 0
+	if pageStr != "" {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil {
+			plainResponseWrite(w, fmt.Sprintf("Invalid page specified: %s", pageStr), http.StatusBadRequest)
+			return
+		}
+	}
+	if perPageStr != "" {
+		perPage, err = strconv.Atoi(perPageStr)
+		if err != nil {
+			plainResponseWrite(w, fmt.Sprintf("Invalid per page count specified: %s", perPageStr), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if searchTerm == "" {
+		getLatestTweetsHandler(w, r, dbConn, page, perPage, format)
+	} else {
+		searchTweetsHandler(w, r, dbConn, page, perPage, format, searchTerm)
+	}
+}
+
+func getLatestTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format string) {
+	ctx := r.Context()
+
+	tweets, err := dbConn.GetTweets(ctx, page, perPage, registry.StatusVisible)
+	if err != nil {
+		log.Errorf("When retrieving latest tweets, page %d, per page %d: %s", page, perPage, err)
+		plainResponseWrite(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if format == "plain" {
+		out := registry.FormatTweetsPlain(tweets)
+		plainResponseWrite(w, out, http.StatusOK)
+	} else if format == "json" {
+		jsonResponseWrite(w, tweets, http.StatusOK)
+	}
+}
+
+func searchTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format, searchTerm string) {
+	ctx := r.Context()
+
+	tweets, err := dbConn.SearchTweets(ctx, page, perPage, searchTerm, registry.StatusVisible)
+	if err != nil {
+		log.Errorf("When searching for tweets containing %s, page %d, per page %d: %s", searchTerm, page, perPage, searchTerm)
+		plainResponseWrite(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if format == "plain" {
+		out := registry.FormatTweetsPlain(tweets)
+		plainResponseWrite(w, out, http.StatusOK)
+	} else if format == "json" {
+		jsonResponseWrite(w, tweets, http.StatusOK)
+	}
 }

@@ -48,19 +48,30 @@ func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 	}
 
 	return throttled.HTTPRateLimiter{
+		DeniedHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusTooManyRequests)
+		}),
 		RateLimiter: rl,
 		VaryBy:      &throttled.VaryBy{Path: true},
 	}
 }
 
 func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		indexHandler(w, r, conf)
-	}).Methods("HEAD", "GET")
-	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
-		plainAddUserHandler(w, r, conf, dbConn)
-	}).Methods("POST")
 	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
 		jsonAddUserHandler(w, r, conf, dbConn)
-	}).Methods("POST")
+	}).Methods(http.MethodPost)
+	r.HandleFunc("/api/json/tweets", func(w http.ResponseWriter, r *http.Request) {
+		getTweetsHandler(w, r, dbConn, "json")
+	}).Methods(http.MethodGet, http.MethodHead)
+
+	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
+		plainAddUserHandler(w, r, conf, dbConn)
+	}).Methods(http.MethodPost)
+	r.HandleFunc("/api/plain/tweets", func(w http.ResponseWriter, r *http.Request) {
+		getTweetsHandler(w, r, dbConn, "plain")
+	}).Methods(http.MethodGet, http.MethodHead)
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		indexHandler(w, r, conf)
+	}).Methods(http.MethodGet, http.MethodHead)
 }
