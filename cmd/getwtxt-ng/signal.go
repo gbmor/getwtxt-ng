@@ -35,7 +35,7 @@ func signalWatcher(conf *Config, logger *log.Logger) {
 			switch sig {
 			case syscall.SIGINT:
 				conf.mu.Lock()
-				logger.Infof("Caught %s\n", sig)
+				logger.Infof("Caught %s", sig)
 				logger.Info("Closing log files and switching to stderr")
 				logger.SetOutput(os.Stderr)
 
