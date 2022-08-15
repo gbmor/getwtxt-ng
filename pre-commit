@@ -1,0 +1,5 @@
+#!/bin/sh
+
+printf 'Running golangci-lint...\n'
+golangci-lint run
+make test
