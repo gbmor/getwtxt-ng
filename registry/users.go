@@ -43,6 +43,27 @@ type User struct {
 	LastSync      time.Time `json:"last_sync"`
 }
 
+func FormatUsersPlain(users []User) string {
+	if len(users) < 1 {
+		return ""
+	}
+
+	builder := strings.Builder{}
+	builder.Grow(len(users) * 128)
+	for _, user := range users {
+		builder.WriteString(user.Nick)
+		builder.WriteString("\t")
+		builder.WriteString(user.URL)
+		builder.WriteString("\t")
+		builder.WriteString(user.DateTimeAdded.Format(time.RFC3339))
+		builder.WriteString("\t")
+		builder.WriteString(user.LastSync.Format(time.RFC3339))
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
+}
+
 // GeneratePasscode creates a new passcode for a user, then stores it and its bcrypt hash in the User struct.
 // The plaintext passcode is returned on success.
 // Both the ciphertext and the plaintext passcode will be omitted if you serialize the User struct into JSON.

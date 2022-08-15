@@ -60,6 +60,9 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
 		jsonAddUserHandler(w, r, conf, dbConn)
 	}).Methods(http.MethodPost)
+	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
+		getUsersHandler(w, r, conf, dbConn, "json")
+	}).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/api/json/tweets", func(w http.ResponseWriter, r *http.Request) {
 		getTweetsHandler(w, r, dbConn, "json")
 	}).Methods(http.MethodGet, http.MethodHead)
@@ -67,6 +70,9 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
 		plainAddUserHandler(w, r, conf, dbConn)
 	}).Methods(http.MethodPost)
+	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
+		getUsersHandler(w, r, conf, dbConn, "plain")
+	}).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/api/plain/tweets", func(w http.ResponseWriter, r *http.Request) {
 		getTweetsHandler(w, r, dbConn, "plain")
 	}).Methods(http.MethodGet, http.MethodHead)
