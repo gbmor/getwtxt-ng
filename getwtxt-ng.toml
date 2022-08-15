@@ -33,7 +33,7 @@ debug_mode = false
 entries_per_page_max = 1000
 entries_per_page_min = 20
 
-# http rate limiting
+# http rate limiting. set http_requests_per_minute to 0 to disable.
 http_requests_per_minute = 30
 http_requests_max_burst = 5
 

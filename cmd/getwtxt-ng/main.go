@@ -65,15 +65,20 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	setUpRoutes(r, conf, dbConn)
 	loggedHandler := handlers.CombinedLoggingHandler(conf.ServerConfig.RequestLogFd, r)
 
-	rl := getHTTPRateLimiter(conf)
-	rateLimitedHandler := rl.RateLimit(loggedHandler)
-
-	setUpRoutes(r, conf, dbConn)
+	var handler http.Handler
+	if conf.ServerConfig.HTTPRequestsPerMinute > 0 {
+		rl := getHTTPRateLimiter(conf)
+		rateLimitedHandler := rl.RateLimit(loggedHandler)
+		handler = rateLimitedHandler
+	} else {
+		handler = loggedHandler
+	}
 
 	s := &http.Server{
-		Handler:      rateLimitedHandler,
+		Handler:      handler,
 		Addr:         fmt.Sprintf("%s:%s", conf.ServerConfig.IP, conf.ServerConfig.Port),
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
