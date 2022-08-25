@@ -200,7 +200,7 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 	if len(tweets) > 0 {
 		if err := dbConn.InsertTweets(ctx, tweets); err != nil {
 			log.Errorf("When adding tweets for new user %s %s: %s", user.Nick, user.URL, err)
-			response.Message = fmt.Sprintf("%s However, we were unable to add your tweets to the registry for some reason. Please contact the administrator of this instance.", response)
+			response.Message = fmt.Sprintf("%s However, we were unable to add your tweets to the registry for some reason. Please contact the administrator of this instance.", response.Message)
 			jsonResponseWrite(w, response, http.StatusInternalServerError)
 			return
 		}
