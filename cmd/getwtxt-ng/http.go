@@ -29,6 +29,13 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
+type APIFormat string
+
+const (
+	APIFormatPlain APIFormat = "plain"
+	APIFormatJSON  APIFormat = "json"
+)
+
 func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 	store, err := memstore.New(65536)
 	if err != nil {
@@ -57,24 +64,21 @@ func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 }
 
 func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
-	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
-		jsonAddUserHandler(w, r, conf, dbConn)
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		format := APIFormat(vars["format"])
+		addUserHandler(w, r, conf, dbConn, format)
 	}).Methods(http.MethodPost)
-	r.HandleFunc("/api/json/users", func(w http.ResponseWriter, r *http.Request) {
-		getUsersHandler(w, r, conf, dbConn, "json")
-	}).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/api/json/tweets", func(w http.ResponseWriter, r *http.Request) {
-		getTweetsHandler(w, r, dbConn, "json")
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		format := APIFormat(vars["format"])
+		getUsersHandler(w, r, conf, dbConn, format)
 	}).Methods(http.MethodGet, http.MethodHead)
 
-	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
-		plainAddUserHandler(w, r, conf, dbConn)
-	}).Methods(http.MethodPost)
-	r.HandleFunc("/api/plain/users", func(w http.ResponseWriter, r *http.Request) {
-		getUsersHandler(w, r, conf, dbConn, "plain")
-	}).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/api/plain/tweets", func(w http.ResponseWriter, r *http.Request) {
-		getTweetsHandler(w, r, dbConn, "plain")
+	r.HandleFunc("/api/{format:json|plain}/tweets", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		format := APIFormat(vars["format"])
+		getTweetsHandler(w, r, dbConn, format)
 	}).Methods(http.MethodGet, http.MethodHead)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

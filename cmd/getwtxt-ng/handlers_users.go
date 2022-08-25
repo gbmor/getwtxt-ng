@@ -31,6 +31,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func addUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB, format APIFormat) {
+	switch format {
+	case APIFormatPlain:
+		plainAddUserHandler(w, r, conf, dbConn)
+	case APIFormatJSON:
+		jsonAddUserHandler(w, r, conf, dbConn)
+	default:
+		// should have 404'ed before this
+		http.Error(w, "404 Not Found", http.StatusNotFound)
+	}
+}
+
 func plainAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
 	ctx := r.Context()
 	w.Header().Set("Content-Type", "text/plain")
@@ -197,7 +209,7 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 	jsonResponseWrite(w, response, http.StatusOK)
 }
 
-func getUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB, format string) {
+func getUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, format APIFormat) {
 	var err error
 	_ = r.ParseForm()
 	pageStr := r.Form.Get("page")
@@ -212,9 +224,9 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbCon
 			msg := MessageResponse{
 				Message: fmt.Sprintf("Invalid page specified: %s", pageStr),
 			}
-			if format == "plain" {
+			if format == APIFormatPlain {
 				plainResponseWrite(w, msg.Message, http.StatusBadRequest)
-			} else if format == "json" {
+			} else if format == APIFormatJSON {
 				jsonResponseWrite(w, msg, http.StatusBadRequest)
 			}
 			return
@@ -226,9 +238,9 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbCon
 			msg := MessageResponse{
 				Message: fmt.Sprintf("Invalid per page count specified: %s", perPageStr),
 			}
-			if format == "plain" {
+			if format == APIFormatPlain {
 				plainResponseWrite(w, msg.Message, http.StatusBadRequest)
-			} else if format == "json" {
+			} else if format == APIFormatJSON {
 				jsonResponseWrite(w, msg, http.StatusBadRequest)
 			}
 			return
@@ -242,7 +254,7 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbCon
 	}
 }
 
-func getLatestUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format string) {
+func getLatestUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format APIFormat) {
 	ctx := r.Context()
 
 	users, err := dbConn.GetUsers(ctx, page, perPage)
@@ -251,23 +263,23 @@ func getLatestUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *regis
 		msg := MessageResponse{
 			Message: "Internal Server Error",
 		}
-		if format == "plain" {
+		if format == APIFormatPlain {
 			plainResponseWrite(w, msg.Message, http.StatusInternalServerError)
-		} else if format == "json" {
+		} else if format == APIFormatJSON {
 			jsonResponseWrite(w, msg, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	if format == "plain" {
+	if format == APIFormatPlain {
 		out := registry.FormatUsersPlain(users)
 		plainResponseWrite(w, out, http.StatusOK)
-	} else if format == "json" {
+	} else if format == APIFormatJSON {
 		jsonResponseWrite(w, users, http.StatusOK)
 	}
 }
 
-func searchUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format, searchTerm string) {
+func searchUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format APIFormat, searchTerm string) {
 	ctx := r.Context()
 
 	users, err := dbConn.SearchUsers(ctx, page, perPage, searchTerm)
@@ -276,18 +288,18 @@ func searchUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry
 		msg := MessageResponse{
 			Message: "Internal Server Error",
 		}
-		if format == "plain" {
+		if format == APIFormatPlain {
 			plainResponseWrite(w, msg.Message, http.StatusInternalServerError)
-		} else if format == "json" {
+		} else if format == APIFormatJSON {
 			jsonResponseWrite(w, msg, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	if format == "plain" {
+	if format == APIFormatPlain {
 		out := registry.FormatUsersPlain(users)
 		plainResponseWrite(w, out, http.StatusOK)
-	} else if format == "json" {
+	} else if format == APIFormatJSON {
 		jsonResponseWrite(w, users, http.StatusOK)
 	}
 }

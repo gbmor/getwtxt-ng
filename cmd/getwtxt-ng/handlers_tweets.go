@@ -27,7 +27,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, format string) {
+func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, format APIFormat) {
 	var err error
 	_ = r.ParseForm()
 	pageStr := r.Form.Get("page")
@@ -42,9 +42,9 @@ func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.D
 			msg := MessageResponse{
 				Message: fmt.Sprintf("Invalid page specified: %s", pageStr),
 			}
-			if format == "plain" {
+			if format == APIFormatPlain {
 				plainResponseWrite(w, msg.Message, http.StatusBadRequest)
-			} else if format == "json" {
+			} else if format == APIFormatJSON {
 				jsonResponseWrite(w, msg, http.StatusBadRequest)
 			}
 			return
@@ -56,9 +56,9 @@ func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.D
 			msg := MessageResponse{
 				Message: fmt.Sprintf("Invalid per page count specified: %s", perPageStr),
 			}
-			if format == "plain" {
+			if format == APIFormatPlain {
 				plainResponseWrite(w, msg.Message, http.StatusBadRequest)
-			} else if format == "json" {
+			} else if format == APIFormatJSON {
 				jsonResponseWrite(w, msg, http.StatusBadRequest)
 			}
 			return
@@ -72,7 +72,7 @@ func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.D
 	}
 }
 
-func getLatestTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format string) {
+func getLatestTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format APIFormat) {
 	ctx := r.Context()
 
 	tweets, err := dbConn.GetTweets(ctx, page, perPage, registry.StatusVisible)
@@ -81,23 +81,23 @@ func getLatestTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *regi
 		msg := MessageResponse{
 			Message: "Internal Server Error",
 		}
-		if format == "plain" {
+		if format == APIFormatPlain {
 			plainResponseWrite(w, msg.Message, http.StatusInternalServerError)
-		} else if format == "json" {
+		} else if format == APIFormatJSON {
 			jsonResponseWrite(w, msg, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	if format == "plain" {
+	if format == APIFormatPlain {
 		out := registry.FormatTweetsPlain(tweets)
 		plainResponseWrite(w, out, http.StatusOK)
-	} else if format == "json" {
+	} else if format == APIFormatJSON {
 		jsonResponseWrite(w, tweets, http.StatusOK)
 	}
 }
 
-func searchTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format, searchTerm string) {
+func searchTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, page, perPage int, format APIFormat, searchTerm string) {
 	ctx := r.Context()
 
 	tweets, err := dbConn.SearchTweets(ctx, page, perPage, searchTerm, registry.StatusVisible)
@@ -106,18 +106,18 @@ func searchTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registr
 		msg := MessageResponse{
 			Message: "Internal Server Error",
 		}
-		if format == "plain" {
+		if format == APIFormatPlain {
 			plainResponseWrite(w, msg.Message, http.StatusInternalServerError)
-		} else if format == "json" {
+		} else if format == APIFormatJSON {
 			jsonResponseWrite(w, msg, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	if format == "plain" {
+	if format == APIFormatPlain {
 		out := registry.FormatTweetsPlain(tweets)
 		plainResponseWrite(w, out, http.StatusOK)
-	} else if format == "json" {
+	} else if format == APIFormatJSON {
 		jsonResponseWrite(w, tweets, http.StatusOK)
 	}
 }
