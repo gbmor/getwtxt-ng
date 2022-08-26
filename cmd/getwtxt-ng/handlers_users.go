@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gbmor/getwtxt-ng/common"
 	"github.com/gbmor/getwtxt-ng/registry"
 	log "github.com/sirupsen/logrus"
 )
@@ -192,7 +193,7 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 	if err != nil {
 		log.Errorf("When fetching twtxt.txt for new user %s %s: %s", user.Nick, user.URL, err)
 		response.Message = fmt.Sprintf("%s However, we were unable to fetch your twtxt file at %s. Another attempt will be made at the next sync interval (every %s)",
-			user.URL, conf.ServerConfig.FetchInterval, response.Message)
+			response.Message, user.URL, conf.ServerConfig.FetchInterval)
 		jsonResponseWrite(w, response, http.StatusInternalServerError)
 		return
 	}
@@ -302,4 +303,191 @@ func searchUsersHandler(w http.ResponseWriter, r *http.Request, dbConn *registry
 	} else if format == APIFormatJSON {
 		jsonResponseWrite(w, users, http.StatusOK)
 	}
+}
+
+func deleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB, format APIFormat) {
+	switch format {
+	case APIFormatPlain:
+		plainDeleteUsersHandler(w, r, conf, dbConn)
+	case APIFormatJSON:
+		jsonDeleteUsersHandler(w, r, conf, dbConn)
+	default:
+		// should have 404'ed before this
+		http.Error(w, "404 Not Found", http.StatusNotFound)
+	}
+}
+
+func plainDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	ctx := r.Context()
+	_ = r.ParseForm()
+
+	pass := r.Header.Get("X-Auth")
+	if pass == "" {
+		http.Error(w, "403 Forbidden", http.StatusForbidden)
+		return
+	}
+	isAdmin := common.ValidatePass(pass, conf.ServerConfig.AdminPassword)
+
+	urls := r.Form["url"]
+	if len(urls) < 1 || urls[0] == "" {
+		http.Error(w, "400 Bad Request: No user(s) to delete", http.StatusBadRequest)
+		return
+	}
+
+	if !isAdmin {
+		if len(urls) > 1 {
+			http.Error(w, "403 Forbidden: Non-admin users may only delete themselves", http.StatusForbidden)
+			return
+		}
+
+		dbUser, err := dbConn.GetUserByURL(ctx, urls[0])
+		if err != nil {
+			log.Errorf("When grabbing user %s: %s", urls[0], err)
+			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		if !common.ValidatePass(pass, dbUser.PasscodeHash) {
+			http.Error(w, "403 Forbidden", http.StatusForbidden)
+			return
+		}
+
+		nTweets, err := dbConn.DeleteUser(ctx, dbUser)
+		if err != nil {
+			log.Errorf("When deleting user %s: %s", dbUser.URL, err)
+			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		out := fmt.Sprintf("Deleted user %s\nDeleted %d tweets\n", dbUser.URL, nTweets)
+		if _, err := w.Write([]byte(out)); err != nil {
+			log.Error(err)
+		}
+
+		return
+	}
+
+	tweetCount, err := dbConn.DeleteUsers(ctx, urls)
+	if err != nil {
+		log.Errorf("When deleting %d users: %s", len(urls), err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	out := fmt.Sprintf("Deleted %d users\nDeleted %d tweets\n", len(urls), tweetCount)
+	if _, err := w.Write([]byte(out)); err != nil {
+		log.Error(err)
+	}
+}
+
+func jsonDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	ctx := r.Context()
+
+	pass := r.Header.Get("X-Auth")
+	if pass == "" {
+		http.Error(w, "403 Forbidden", http.StatusForbidden)
+		return
+	}
+	isAdmin := common.ValidatePass(pass, conf.ServerConfig.AdminPassword)
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		msg := MessageResponse{
+			Message: "500 Internal Server Error",
+		}
+		jsonResponseWrite(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	if len(bodyBytes) < 1 {
+		msg := MessageResponse{
+			Message: "400 Bad Request: No user(s) to delete",
+		}
+		jsonResponseWrite(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	users := make([]registry.User, 0, 2)
+	if err := json.Unmarshal(bodyBytes, &users); err != nil {
+		msg := MessageResponse{
+			Message: "400 Bad Request: Invalid request body",
+		}
+		jsonResponseWrite(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	if len(users) < 1 {
+		msg := MessageResponse{
+			Message: "400 Bad Request: No user(s) to delete",
+		}
+		jsonResponseWrite(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	if !isAdmin {
+		if len(users) > 1 {
+			msg := MessageResponse{
+				Message: "403 Forbidden: Non-admin users may only delete themselves",
+			}
+			jsonResponseWrite(w, msg, http.StatusForbidden)
+			return
+		}
+		firstUserURL := users[0].URL
+
+		dbUser, err := dbConn.GetUserByURL(ctx, firstUserURL)
+		if err != nil {
+			log.Errorf("When grabbing user %s: %s", firstUserURL, err)
+			msg := MessageResponse{
+				Message: "500 Internal Server Error",
+			}
+			jsonResponseWrite(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		if !common.ValidatePass(pass, dbUser.PasscodeHash) {
+			msg := MessageResponse{
+				Message: "403 Forbidden",
+			}
+			jsonResponseWrite(w, msg, http.StatusForbidden)
+			return
+		}
+
+		nTweets, err := dbConn.DeleteUser(ctx, dbUser)
+		if err != nil {
+			msg := MessageResponse{
+				Message: fmt.Sprintf("When deleting user %s: %s", dbUser.URL, err),
+			}
+			jsonResponseWrite(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		msg := MessageResponse{
+			Message:       fmt.Sprintf("Deleted user %s", dbUser.URL),
+			TweetsDeleted: nTweets,
+		}
+		jsonResponseWrite(w, msg, http.StatusOK)
+
+		return
+	}
+
+	urls := make([]string, 0, len(users))
+	for _, user := range users {
+		urls = append(urls, user.URL)
+	}
+
+	nTweets, err := dbConn.DeleteUsers(ctx, urls)
+	if err != nil {
+		msg := MessageResponse{
+			Message: "500 Internal Server Error",
+		}
+		jsonResponseWrite(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	msg := MessageResponse{
+		Message:       "Deleted users successfully",
+		UsersDeleted:  len(users),
+		TweetsDeleted: nTweets,
+	}
+	jsonResponseWrite(w, msg, http.StatusOK)
 }

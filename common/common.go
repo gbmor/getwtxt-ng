@@ -48,6 +48,11 @@ func HashPass(s string) (string, error) {
 	return string(h), nil
 }
 
+// ValidatePass returns true if the password matches the bcrypt hash, false otherwise.
+func ValidatePass(pass, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)) == nil
+}
+
 // IsValidURL returns true if the provided URL is a valid-looking HTTP or HTTPS URL.
 func IsValidURL(destURL string, logger *log.Logger) bool {
 	if strings.TrimSpace(destURL) == "" {

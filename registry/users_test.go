@@ -49,8 +49,8 @@ func TestDB_GetUserByURL(t *testing.T) {
 			t.Error("expected error, got nil")
 			return
 		}
-		if !strings.Contains(err.Error(), "empty user URL provided") {
-			t.Errorf("expected empty URL error, got: %s", err)
+		if !errors.Is(err, ErrNoUsersProvided) {
+			t.Errorf("expected no users error, got: %s", err)
 		}
 	})
 
@@ -111,7 +111,7 @@ func TestDB_InsertUser(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error, but got nil")
 		}
-		if !strings.Contains(err.Error(), "incomplete user info") {
+		if !errors.Is(err, ErrIncompleteUserInfo) {
 			t.Errorf("Expected incomplete user info error, got: %s", err)
 		}
 	})
@@ -190,7 +190,7 @@ func TestDB_DeleteUser(t *testing.T) {
 	t.Run("invalid user info", func(t *testing.T) {
 		emptyUser := User{}
 		_, err := mockDB.DeleteUser(ctx, &emptyUser)
-		if !strings.Contains(err.Error(), "invalid user provided") {
+		if !errors.Is(err, ErrNoUsersProvided) {
 			t.Errorf("Expected invalid user error, got: %s", err)
 		}
 	})
@@ -284,6 +284,144 @@ func TestDB_DeleteUser(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err.Error())
 	}
+}
+
+func TestDB_DeleteUsers(t *testing.T) {
+	memDB := getPopulatedDB(t)
+	mockDB, mock := getDBMocker(t)
+	ctx := context.Background()
+	delTweetsStmtStr := "DELETE FROM tweets WHERE user_id IN (SELECT id FROM users WHERE url = ?)"
+	delUserStmtStr := "DELETE FROM users WHERE url = ?"
+
+	urls := make([]string, 0, len(populatedDBUsers))
+	for _, user := range populatedDBUsers {
+		urls = append(urls, user.URL)
+	}
+
+	t.Run("no users provided", func(t *testing.T) {
+		_, err := mockDB.DeleteUsers(ctx, nil)
+		if !errors.Is(err, ErrNoUsersProvided) {
+			t.Errorf("Expected ErrNoUsersProvided, got %s", err)
+		}
+	})
+
+	t.Run("fail to begin tx", func(t *testing.T) {
+		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("fail to prepare delTweetsStmt", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectPrepare(delTweetsStmtStr).WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("fail to prepare delUserStmt", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectPrepare(delTweetsStmtStr)
+		mock.ExpectPrepare(delUserStmtStr).WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("fail to delete tweets", func(t *testing.T) {
+		mock.ExpectBegin()
+		delTweets := mock.ExpectPrepare(delTweetsStmtStr)
+		mock.ExpectPrepare(delUserStmtStr)
+		delTweets.ExpectExec().WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("fail to delete user", func(t *testing.T) {
+		mock.ExpectBegin()
+		delTweets := mock.ExpectPrepare(delTweetsStmtStr)
+		delUser := mock.ExpectPrepare(delUserStmtStr)
+		delTweets.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		delUser.ExpectExec().WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("fail to commit", func(t *testing.T) {
+		mock.ExpectBegin()
+		delTweets := mock.ExpectPrepare(delTweetsStmtStr)
+		delUser := mock.ExpectPrepare(delUserStmtStr)
+		delTweets.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 10))
+		delUser.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		delTweets.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 10))
+		delUser.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit().WillReturnError(sql.ErrConnDone)
+		_, err := mockDB.DeleteUsers(ctx, urls)
+		if !errors.Is(err, sql.ErrConnDone) {
+			t.Errorf("Expected sql.ErrConnDone, got %s", err)
+		}
+	})
+
+	t.Run("succeed", func(t *testing.T) {
+		mock.ExpectBegin()
+		delTweets := mock.ExpectPrepare(delTweetsStmtStr)
+		delUser := mock.ExpectPrepare(delUserStmtStr)
+		delTweets.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 10))
+		delUser.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		delTweets.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 10))
+		delUser.ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		nTweets, err := mockDB.DeleteUsers(ctx, urls)
+		if err != nil {
+			t.Errorf("Expected no error, got %s", err)
+		}
+		if nTweets != 20 {
+			t.Errorf("Expected 20 tweets deleted, got %d", nTweets)
+		}
+	})
+
+	t.Run("successful", func(t *testing.T) {
+		tweets, err := memDB.DeleteUsers(ctx, urls)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		if tweets != 3 {
+			t.Errorf("Expected 1 tweet removed, got %d removed", tweets)
+		}
+
+		getUserStmt := "SELECT url FROM users WHERE id = ?"
+		rows, err := memDB.conn.Query(getUserStmt, populatedDBUsers[0].ID)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		defer func() {
+			_ = rows.Close()
+		}()
+		for rows.Next() {
+			userUrl := ""
+			err := rows.Scan(&userUrl)
+			if !errors.Is(err, sql.ErrNoRows) {
+				t.Errorf("Expected row to be missing? %s", err)
+			}
+		}
+	})
+
+	t.Run("canceled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := memDB.DeleteUsers(ctx, urls)
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+	})
 }
 
 func TestDB_GetUsers(t *testing.T) {

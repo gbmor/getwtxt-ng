@@ -32,8 +32,10 @@ type JSONResponse interface {
 }
 
 type MessageResponse struct {
-	Message  string `json:"message"`
-	Passcode string `json:"passcode,omitempty"`
+	Message       string `json:"message"`
+	Passcode      string `json:"passcode,omitempty"`
+	TweetsDeleted int64  `json:"tweets_deleted,omitempty"`
+	UsersDeleted  int    `json:"users_deleted,omitempty"`
 }
 
 func jsonResponseWrite[T JSONResponse](w http.ResponseWriter, body T, statusCode int) {

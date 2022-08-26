@@ -31,6 +31,12 @@ import (
 	"github.com/gbmor/getwtxt-ng/common"
 )
 
+// ErrNoUsersProvided is returned when user(s) were expected and not provided.
+var ErrNoUsersProvided = errors.New("no user(s) provided")
+
+// ErrIncompleteUserInfo is returned when we need more information than we were given.
+var ErrIncompleteUserInfo = errors.New("incomplete user info supplied: missing URL and/or nickname and/or passcode")
+
 // User represents a single twtxt.txt feed.
 // The URL must be unique, but the Nick doesn't.
 type User struct {
@@ -87,7 +93,7 @@ func (u *User) GeneratePasscode() (string, error) {
 func (d *DB) GetUserByURL(ctx context.Context, userURL string) (*User, error) {
 	userURL = strings.TrimSpace(userURL)
 	if userURL == "" {
-		return nil, errors.New("empty user URL provided")
+		return nil, ErrNoUsersProvided
 	}
 
 	user := User{}
@@ -110,7 +116,7 @@ func (d *DB) GetUserByURL(ctx context.Context, userURL string) (*User, error) {
 // The ID field of the provided *User is ignored.
 func (d *DB) InsertUser(ctx context.Context, u *User) error {
 	if u == nil || u.URL == "" || u.Nick == "" || u.PasscodeHash == "" {
-		return errors.New("incomplete user info supplied: missing URL and/or nickname and/or passcode")
+		return ErrIncompleteUserInfo
 	}
 	if u.DateTimeAdded.IsZero() {
 		u.DateTimeAdded = time.Now().UTC()
@@ -147,7 +153,7 @@ func (d *DB) InsertUser(ctx context.Context, u *User) error {
 // DeleteUser removes a user and their tweets. Returns the number of tweets deleted.
 func (d *DB) DeleteUser(ctx context.Context, u *User) (int64, error) {
 	if u == nil || u.ID == "" {
-		return 0, errors.New("invalid user provided")
+		return 0, ErrNoUsersProvided
 	}
 
 	tx, err := d.conn.Begin()
@@ -180,6 +186,58 @@ func (d *DB) DeleteUser(ctx context.Context, u *User) (int64, error) {
 	}
 
 	return tweetsRemoved, nil
+}
+
+// DeleteUsers removes multiple users and their tweets. Returns the total number of tweets deleted.
+func (d *DB) DeleteUsers(ctx context.Context, urls []string) (int64, error) {
+	userCount := len(urls)
+	if userCount < 1 {
+		return 0, ErrNoUsersProvided
+	}
+
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("when beginning tx to delete %d users: %w", userCount, err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	tweetCount := int64(0)
+	delTweetsStmtStr := "DELETE FROM tweets WHERE user_id IN (SELECT id FROM users WHERE url = ?)"
+	delTweetsStmt, err := tx.Prepare(delTweetsStmtStr)
+	if err != nil {
+		return 0, fmt.Errorf("when preparing stmt to delete tweets from %d users: %w", userCount, err)
+	}
+
+	delUserStmtStr := "DELETE FROM users WHERE url = ?"
+	delUserStmt, err := tx.Prepare(delUserStmtStr)
+	if err != nil {
+		return 0, fmt.Errorf("when preparing stmt to delete %d users: %w", userCount, err)
+	}
+
+	for _, user := range urls {
+		tweetRes, err := delTweetsStmt.ExecContext(ctx, user)
+		if err != nil {
+			return 0, fmt.Errorf("when deleting tweets for user %s: %w", user, err)
+		}
+		thisTweetCount, err := tweetRes.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("when deleting tweets for user %s: %w", user, err)
+		}
+		tweetCount += thisTweetCount
+
+		_, err = delUserStmt.ExecContext(ctx, user)
+		if err != nil {
+			return 0, fmt.Errorf("when deleting user %s: %w", user, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("when committing tx to delete %d users: %w", userCount, err)
+	}
+
+	return tweetCount, nil
 }
 
 // GetUsers gets a page's worth of users.

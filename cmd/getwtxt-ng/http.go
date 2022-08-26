@@ -74,6 +74,11 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 		format := APIFormat(vars["format"])
 		getUsersHandler(w, r, dbConn, format)
 	}).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		format := APIFormat(vars["format"])
+		deleteUsersHandler(w, r, conf, dbConn, format)
+	}).Methods(http.MethodDelete)
 
 	r.HandleFunc("/api/{format:json|plain}/tweets", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
