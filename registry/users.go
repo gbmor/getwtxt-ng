@@ -44,7 +44,7 @@ type User struct {
 	URL           string    `json:"url"`
 	Nick          string    `json:"nickname"`
 	Passcode      string    `json:"-"`
-	PasscodeHash  string    `json:"-"`
+	PasscodeHash  []byte    `json:"-"`
 	DateTimeAdded time.Time `json:"datetime_added"`
 	LastSync      time.Time `json:"last_sync"`
 }
@@ -89,8 +89,8 @@ func (u *User) GeneratePasscode() (string, error) {
 	return u.Passcode, nil
 }
 
-// GetUserByURL returns the user's entire row from the database.
-func (d *DB) GetUserByURL(ctx context.Context, userURL string) (*User, error) {
+// GetFullUserByURL returns the user's entire row from the database.
+func (d *DB) GetFullUserByURL(ctx context.Context, userURL string) (*User, error) {
 	userURL = strings.TrimSpace(userURL)
 	if userURL == "" {
 		return nil, ErrNoUsersProvided
@@ -115,7 +115,7 @@ func (d *DB) GetUserByURL(ctx context.Context, userURL string) (*User, error) {
 // InsertUser adds a user to the database.
 // The ID field of the provided *User is ignored.
 func (d *DB) InsertUser(ctx context.Context, u *User) error {
-	if u == nil || u.URL == "" || u.Nick == "" || u.PasscodeHash == "" {
+	if u == nil || u.URL == "" || u.Nick == "" || len(u.PasscodeHash) < 1 {
 		return ErrIncompleteUserInfo
 	}
 	if u.DateTimeAdded.IsZero() {

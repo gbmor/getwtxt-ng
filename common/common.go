@@ -36,21 +36,21 @@ var Version = "trunk"
 
 // HashPass returns the bcrypt hash of the provided string.
 // If an empty string is provided, return an empty string.
-func HashPass(s string) (string, error) {
+func HashPass(s string) ([]byte, error) {
 	if s == "" {
-		return "", nil
+		return nil, nil
 	}
 	h, err := bcrypt.GenerateFromPassword([]byte(s), 12)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(h), nil
+	return h, nil
 }
 
 // ValidatePass returns true if the password matches the bcrypt hash, false otherwise.
-func ValidatePass(pass, hash string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)) == nil
+func ValidatePass(pass string, hash []byte) bool {
+	return bcrypt.CompareHashAndPassword(hash, []byte(pass)) == nil
 }
 
 // IsValidURL returns true if the provided URL is a valid-looking HTTP or HTTPS URL.

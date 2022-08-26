@@ -56,7 +56,7 @@ func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpCli
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
     	url TEXT NOT NULL UNIQUE,
     	nick TEXT NOT NULL,
-    	passcode_hash TEXT NOT NULL,
+    	passcode_hash BLOB NOT NULL,
     	dt_added INTEGER NOT NULL,
     	last_sync INTEGER NOT NULL
 )`

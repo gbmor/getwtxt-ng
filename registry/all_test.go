@@ -44,7 +44,7 @@ var populatedDBUsers = []User{
 		ID:            "1",
 		URL:           "https://example.com/twtxt.txt",
 		Nick:          "foobar",
-		PasscodeHash:  "abcdefghij0123456789",
+		Passcode:      "abcdefghij0123456789",
 		DateTimeAdded: time.Now().UTC().AddDate(0, 0, -15),
 		LastSync:      time.Now().UTC().AddDate(0, 0, -10),
 	},
@@ -52,7 +52,7 @@ var populatedDBUsers = []User{
 		ID:            "2",
 		URL:           "https://example.org/twtxt.txt",
 		Nick:          "barfoo",
-		PasscodeHash:  "abcdefghij0123456789",
+		Passcode:      "abcdefghij0123456789",
 		DateTimeAdded: time.Now().UTC().AddDate(0, 0, -5),
 		LastSync:      time.Now().UTC().AddDate(0, 0, -1),
 	},
@@ -111,7 +111,7 @@ func getPopulatedDB(t *testing.T) *DB {
 
 	usersStmt := "INSERT INTO users (id, url, nick, passcode_hash, dt_added, last_sync) VALUES (?,?,?,?,?,?)"
 	for _, u := range populatedDBUsers {
-		u.PasscodeHash, err = common.HashPass(u.PasscodeHash)
+		u.PasscodeHash, err = common.HashPass(u.Passcode)
 		if err != nil {
 			t.Fatal(err.Error())
 		}

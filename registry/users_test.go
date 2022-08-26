@@ -44,7 +44,7 @@ func TestDB_GetUserByURL(t *testing.T) {
 
 	t.Run("invalid user URL", func(t *testing.T) {
 		db := DB{}
-		_, err := db.GetUserByURL(ctx, "    ")
+		_, err := db.GetFullUserByURL(ctx, "    ")
 		if err == nil {
 			t.Error("expected error, got nil")
 			return
@@ -58,14 +58,14 @@ func TestDB_GetUserByURL(t *testing.T) {
 		mock.ExpectQuery("SELECT * FROM users WHERE url = ?").
 			WithArgs("https://example.net/twtxt.txt").
 			WillReturnError(sql.ErrNoRows)
-		_, err := mockDB.GetUserByURL(ctx, "https://example.net/twtxt.txt")
+		_, err := mockDB.GetFullUserByURL(ctx, "https://example.net/twtxt.txt")
 		if !errors.Is(err, sql.ErrNoRows) {
 			t.Errorf("Expected sql.ErrNoRows, got: %s", err)
 		}
 	})
 
 	t.Run("get a user successfully", func(t *testing.T) {
-		out, err := memDB.GetUserByURL(ctx, "https://example.com/twtxt.txt")
+		out, err := memDB.GetFullUserByURL(ctx, "https://example.com/twtxt.txt")
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -77,7 +77,7 @@ func TestDB_GetUserByURL(t *testing.T) {
 	t.Run("canceled context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		_, err := memDB.GetUserByURL(ctx, "https://example.com/twtxt.txt")
+		_, err := memDB.GetFullUserByURL(ctx, "https://example.com/twtxt.txt")
 		if err == nil {
 			t.Error("expected error, got none")
 		}
@@ -159,8 +159,8 @@ func TestDB_InsertUser(t *testing.T) {
 		testUser.LastSync = time.Time{}
 		testUser.ID = dbUser.ID
 		checkedUser := testUser
-		checkedUser.PasscodeHash = ""
-		dbUser.PasscodeHash = ""
+		checkedUser.PasscodeHash = nil
+		dbUser.PasscodeHash = nil
 		if !reflect.DeepEqual(checkedUser, dbUser) {
 			t.Errorf("Expected:\n%#v\nGot:\n%#v\n", checkedUser, dbUser)
 		}

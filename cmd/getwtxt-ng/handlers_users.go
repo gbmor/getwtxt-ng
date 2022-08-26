@@ -326,7 +326,7 @@ func plainDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Confi
 		http.Error(w, "403 Forbidden", http.StatusForbidden)
 		return
 	}
-	isAdmin := common.ValidatePass(pass, conf.ServerConfig.AdminPassword)
+	isAdmin := common.ValidatePass(pass, []byte(conf.ServerConfig.AdminPassword))
 
 	urls := r.Form["url"]
 	if len(urls) < 1 || urls[0] == "" {
@@ -340,7 +340,7 @@ func plainDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Confi
 			return
 		}
 
-		dbUser, err := dbConn.GetUserByURL(ctx, urls[0])
+		dbUser, err := dbConn.GetFullUserByURL(ctx, urls[0])
 		if err != nil {
 			log.Errorf("When grabbing user %s: %s", urls[0], err)
 			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
@@ -388,7 +388,7 @@ func jsonDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config
 		http.Error(w, "403 Forbidden", http.StatusForbidden)
 		return
 	}
-	isAdmin := common.ValidatePass(pass, conf.ServerConfig.AdminPassword)
+	isAdmin := common.ValidatePass(pass, []byte(conf.ServerConfig.AdminPassword))
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -434,7 +434,7 @@ func jsonDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config
 		}
 		firstUserURL := users[0].URL
 
-		dbUser, err := dbConn.GetUserByURL(ctx, firstUserURL)
+		dbUser, err := dbConn.GetFullUserByURL(ctx, firstUserURL)
 		if err != nil {
 			log.Errorf("When grabbing user %s: %s", firstUserURL, err)
 			msg := MessageResponse{
