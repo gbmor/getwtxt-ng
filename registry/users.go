@@ -25,6 +25,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -36,6 +38,15 @@ var ErrNoUsersProvided = errors.New("no user(s) provided")
 
 // ErrIncompleteUserInfo is returned when we need more information than we were given.
 var ErrIncompleteUserInfo = errors.New("incomplete user info supplied: missing URL and/or nickname and/or passcode")
+
+// ErrUserURLIsNotTwtxtFile is returned when the provided user's URL is not a path to a twtxt.txt file.
+var ErrUserURLIsNotTwtxtFile = errors.New("user URL does not point to twtxt.txt")
+
+// RegexIsAlpha matches `[a-zA-Z0-9_]+`
+var RegexIsAlpha = regexp.MustCompile(`\w+`)
+
+// RegexURLIsTwtxtFile checks if the URL points to a twtxt.txt file.
+var RegexURLIsTwtxtFile = regexp.MustCompile(`/twtxt\.txt$`)
 
 // User represents a single twtxt.txt feed.
 // The URL must be unique, but the Nick doesn't.
@@ -115,9 +126,19 @@ func (d *DB) GetFullUserByURL(ctx context.Context, userURL string) (*User, error
 // InsertUser adds a user to the database.
 // The ID field of the provided *User is ignored.
 func (d *DB) InsertUser(ctx context.Context, u *User) error {
-	if u == nil || u.URL == "" || u.Nick == "" || len(u.PasscodeHash) < 1 {
+	if u == nil || u.URL == "" || u.Nick == "" || len(u.PasscodeHash) < 1 ||
+		!RegexIsAlpha.MatchString(u.Nick) {
 		return ErrIncompleteUserInfo
 	}
+	parsedURL, urlParseErr := url.Parse(u.URL)
+	if urlParseErr != nil || parsedURL.Scheme == "" {
+		return ErrIncompleteUserInfo
+	}
+
+	if !RegexURLIsTwtxtFile.MatchString(u.URL) {
+		return ErrUserURLIsNotTwtxtFile
+	}
+
 	if u.DateTimeAdded.IsZero() {
 		u.DateTimeAdded = time.Now().UTC()
 	}

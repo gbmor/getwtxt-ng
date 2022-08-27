@@ -116,6 +116,26 @@ func TestDB_InsertUser(t *testing.T) {
 		}
 	})
 
+	t.Run("URL is relative", func(t *testing.T) {
+		db := DB{}
+		thisUser := testUser
+		thisUser.URL = "/twtxt.txt"
+		err := db.InsertUser(ctx, &thisUser)
+		if !errors.Is(err, ErrIncompleteUserInfo) {
+			t.Errorf("Expected ErrIncompleteUserInfo, got: %s", err)
+		}
+	})
+
+	t.Run("URL to other file", func(t *testing.T) {
+		db := DB{}
+		thisUser := testUser
+		thisUser.URL = "https://example.com/config.txt"
+		err := db.InsertUser(ctx, &thisUser)
+		if !errors.Is(err, ErrUserURLIsNotTwtxtFile) {
+			t.Errorf("Expected ErrUserURLIsNotTwtxtFile, got: %s", err)
+		}
+	})
+
 	t.Run("error beginning tx", func(t *testing.T) {
 		mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 		err := mockDB.InsertUser(ctx, &testUser)

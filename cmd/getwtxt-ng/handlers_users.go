@@ -20,9 +20,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +68,19 @@ func plainAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, d
 		return
 	}
 
-	userSearchOut, err := dbConn.SearchUsers(ctx, 1, conf.ServerConfig.EntriesPerPageMin, twtxtURL)
+	// This is to prevent variations of the same URL showing up multiple times.
+	// Eg: http://example.com/twtxt.txt vs https://example.com/twtxt.txt
+	// We're also chomping www. off.
+	parsedURL, err := url.Parse(twtxtURL)
+	if err != nil {
+		msg := "400 Bad Request: Invalid URL"
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	host := strings.TrimPrefix(parsedURL.Host, "www.")
+	constructedURL := fmt.Sprintf("%s%s", host, parsedURL.Path)
+
+	userSearchOut, err := dbConn.SearchUsers(ctx, 1, conf.ServerConfig.EntriesPerPageMin, constructedURL)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Errorf("While searching for user %s: %s", twtxtURL, err)
@@ -90,6 +104,11 @@ func plainAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, d
 	}
 
 	if err := dbConn.InsertUser(ctx, &user); err != nil {
+		if errors.Is(err, registry.ErrUserURLIsNotTwtxtFile) || errors.Is(err, registry.ErrIncompleteUserInfo) {
+			msg := "400 Bad Request: Make sure the info provided is valid and the URL points to a twtxt.txt file"
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Errorf("When adding new user %s %s: %s", user.Nick, user.URL, err)
 		return
@@ -158,7 +177,18 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 		return
 	}
 
-	userSearchOut, err := dbConn.SearchUsers(ctx, 1, conf.ServerConfig.EntriesPerPageMin, user.URL)
+	// This is to prevent variations of the same URL showing up multiple times.
+	// Eg: http://example.com/twtxt.txt vs https://example.com/twtxt.txt
+	// We're also chomping www. off.
+	parsedURL, err := url.Parse(user.URL)
+	if err != nil {
+		response.Message = "400 Bad Request: Invalid URL"
+		jsonResponseWrite(w, response, http.StatusBadRequest)
+	}
+	host := strings.TrimPrefix(parsedURL.Host, "www.")
+	constructedURL := fmt.Sprintf("%s%s", host, parsedURL.Path)
+
+	userSearchOut, err := dbConn.SearchUsers(ctx, 1, conf.ServerConfig.EntriesPerPageMin, constructedURL)
 	if err != nil {
 		log.Errorf("While searching for user %s: %s", user.URL, err)
 		response.Message = "Internal Server Error"
@@ -180,6 +210,11 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 	}
 
 	if err := dbConn.InsertUser(ctx, &user); err != nil {
+		if errors.Is(err, registry.ErrUserURLIsNotTwtxtFile) || errors.Is(err, registry.ErrIncompleteUserInfo) {
+			response.Message = "400 Bad Request: Make sure the info provided is valid and the URL points to a twtxt.txt file"
+			jsonResponseWrite(w, response, http.StatusBadRequest)
+			return
+		}
 		log.Errorf("When adding new user %s %s: %s", user.Nick, user.URL, err)
 		response.Message = "Internal Server Error"
 		jsonResponseWrite(w, response, http.StatusInternalServerError)
