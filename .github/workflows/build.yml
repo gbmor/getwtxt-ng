@@ -18,10 +18,10 @@ jobs:
           version: latest
 
       - name: Build getwtxt-ng
-        run: go build ./cmd/getwtxt-ng
+        run: go build -tags 'fts5' ./cmd/getwtxt-ng
 
       - name: Build adminPassGen
         run: go build ./cmd/adminPassGen
 
       - name: Test
-        run: go test -race ./...
+        run: go test -tags 'fts5' -race ./...
