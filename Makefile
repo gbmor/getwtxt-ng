@@ -9,9 +9,15 @@ GOFLAGS?=-ldflags '-s -w -X github.com/gbmor/getwtxt-ng/common.Version=${VERSION
 all: clean build
 
 .PHONY: build
-build:
-	@printf "%s\n" "Building getwtxt-ng."
+build: getwtxt-ng adminPassGen
+
+getwtxt-ng:
+	@printf "Building getwtxt-ng.\n"
 	go build ${GOTAGS} ${GOFLAGS} ./cmd/getwtxt-ng
+	@printf "\n"
+
+adminPassGen:
+	@printf "Building adminPassGen\n"
 	go build -ldflags='-s -w' ./cmd/adminPassGen
 	@printf "\n"
 
