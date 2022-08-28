@@ -20,10 +20,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gbmor/getwtxt-ng/common"
 	"github.com/gbmor/getwtxt-ng/registry"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,6 +54,25 @@ func plainResponseWrite(w http.ResponseWriter, body string, statusCode int) {
 	w.WriteHeader(statusCode)
 	if _, err := w.Write([]byte(body)); err != nil {
 		log.Error(err)
+	}
+}
+
+// This just responds with the most recent tagged version.
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	format := APIFormat(vars["format"])
+	versionString := fmt.Sprintf("getwtxt-ng %s", common.Version)
+
+	switch format {
+	case APIFormatJSON:
+		msg := MessageResponse{
+			Message: versionString,
+		}
+		jsonResponseWrite(w, msg, http.StatusOK)
+	case APIFormatPlain:
+		plainResponseWrite(w, versionString, http.StatusOK)
+	default:
+		http.Error(w, "404 Not Found", http.StatusNotFound)
 	}
 }
 

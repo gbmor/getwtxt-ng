@@ -95,6 +95,9 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 		addUserHandler(w, r, conf, dbConn, getFormat(r))
 	}).Methods(http.MethodPost)
 
+	r.HandleFunc("/api/{format:json|plain}/version", versionHandler).
+		Methods(http.MethodGet, http.MethodHead)
+
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexHandler(w, r, conf)
 	}).Methods(http.MethodGet, http.MethodHead)
