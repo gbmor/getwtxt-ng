@@ -36,6 +36,11 @@ const (
 	APIFormatJSON  APIFormat = "json"
 )
 
+func getFormat(r *http.Request) APIFormat {
+	vars := mux.Vars(r)
+	return APIFormat(vars["format"])
+}
+
 func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 	store, err := memstore.New(65536)
 	if err != nil {
@@ -64,27 +69,31 @@ func getHTTPRateLimiter(conf *Config) throttled.HTTPRateLimiter {
 }
 
 func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
-	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		format := APIFormat(vars["format"])
-		addUserHandler(w, r, conf, dbConn, format)
-	}).Methods(http.MethodPost)
-	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		format := APIFormat(vars["format"])
-		getUsersHandler(w, r, dbConn, format)
+	r.HandleFunc("/api/{format:json|plain}/mentions", func(w http.ResponseWriter, r *http.Request) {
+		getMentionsHandler(w, r, dbConn, getFormat(r))
 	}).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+
+	r.HandleFunc("/api/{format:json|plain}/tags/{tag:[\\w]+}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		format := APIFormat(vars["format"])
-		deleteUsersHandler(w, r, conf, dbConn, format)
-	}).Methods(http.MethodDelete)
+		getTagsHandler(w, r, dbConn, getFormat(r), vars["tag"])
+	}).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/api/{format:json|plain}/tags", func(w http.ResponseWriter, r *http.Request) {
+		getTagsHandler(w, r, dbConn, getFormat(r), "")
+	}).Methods(http.MethodGet, http.MethodHead)
 
 	r.HandleFunc("/api/{format:json|plain}/tweets", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		format := APIFormat(vars["format"])
-		getTweetsHandler(w, r, dbConn, format)
+		getTweetsHandler(w, r, dbConn, getFormat(r))
 	}).Methods(http.MethodGet, http.MethodHead)
+
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		deleteUsersHandler(w, r, conf, dbConn, getFormat(r))
+	}).Methods(http.MethodDelete)
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		getUsersHandler(w, r, dbConn, getFormat(r))
+	}).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
+		addUserHandler(w, r, conf, dbConn, getFormat(r))
+	}).Methods(http.MethodPost)
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexHandler(w, r, conf)

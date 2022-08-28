@@ -36,7 +36,7 @@ func TestDB_InsertTweets(t *testing.T) {
 	memDB := getPopulatedDB(t)
 	mockDB, mock := getDBMocker(t)
 	ctx := context.Background()
-	insertStmt := "INSERT OR IGNORE INTO tweets (user_id, dt, body) VALUES(?,?,?)"
+	insertStmt := "INSERT OR IGNORE INTO tweets (user_id, dt, body, contains_mentions, contains_tags) VALUES(?,?,?,?,?)"
 
 	t.Run("no tweets provided", func(t *testing.T) {
 		err := mockDB.InsertTweets(ctx, nil)
@@ -68,7 +68,7 @@ func TestDB_InsertTweets(t *testing.T) {
 		mock.ExpectBegin()
 		stmt := mock.ExpectPrepare(insertStmt)
 		stmt.ExpectExec().
-			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.UnixNano(), populatedDBTweets[0].Body).
+			WithArgs(populatedDBTweets[0].ID, populatedDBTweets[0].DateTime.UnixNano(), populatedDBTweets[0].Body, 0, 0).
 			WillReturnError(sql.ErrTxDone)
 		mock.ExpectRollback()
 		err := mockDB.InsertTweets(ctx, populatedDBTweets)
@@ -83,7 +83,7 @@ func TestDB_InsertTweets(t *testing.T) {
 			t.Error(err.Error())
 		}
 		outTweets := make([]Tweet, 0)
-		getAllTweets := "SELECT * FROM tweets"
+		getAllTweets := "SELECT id, user_id, dt, body, hidden FROM tweets"
 		rows, err := memDB.conn.Query(getAllTweets)
 		if err != nil {
 			t.Error(err.Error())
@@ -172,7 +172,7 @@ func TestDB_ToggleTweetHiddenStatus(t *testing.T) {
 
 		// Dump the tweets table to stderr if something went wrong
 		if t.Failed() {
-			getTweets := "SELECT * FROM tweets"
+			getTweets := "SELECT id, user_id, dt, body, hidden FROM tweets"
 			rows, err := memDB.conn.Query(getTweets)
 			if err != nil {
 				t.Error(err.Error())
@@ -278,14 +278,13 @@ func TestDB_SearchTweets(t *testing.T) {
 	mockDB, mock := getDBMocker(t)
 	ctx := context.Background()
 	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
-					FROM (SELECT tweets.*, users.nick AS nick, users.url AS url, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
-					      FROM tweets LEFT JOIN users ON users.id = tweets.user_id WHERE tweets.hidden = ? AND body LIKE ?)
-					WHERE set_id > ?
-  					AND set_id <= ?`
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_search WHERE tweets_search.hidden = ? AND body MATCH ?)
+					WHERE set_id > ? AND set_id <= ?`
 
 	t.Run("fail to query", func(t *testing.T) {
 		mock.ExpectQuery(searchStmt).
-			WithArgs(StatusVisible, "%foo%", 0, 20).
+			WithArgs(StatusVisible, "foo", 0, 20).
 			WillReturnError(sql.ErrNoRows)
 		_, err := mockDB.SearchTweets(ctx, 1, 1, "foo", StatusVisible)
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -295,7 +294,7 @@ func TestDB_SearchTweets(t *testing.T) {
 
 	t.Run("fail to scan", func(t *testing.T) {
 		mock.ExpectQuery(searchStmt).
-			WithArgs(StatusVisible, "%foo%", 0, 1000).
+			WithArgs(StatusVisible, "foo", 0, 1000).
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "user_id", "dt", "body", "hidden"}).
 					AddRow("1", "2", "thirty five o'clock", "hello there", 0))
@@ -309,7 +308,7 @@ func TestDB_SearchTweets(t *testing.T) {
 	})
 
 	t.Run("search", func(t *testing.T) {
-		searchTerm := "o"
+		searchTerm := "oh"
 		memDB := getPopulatedDB(t)
 		memDB.EntriesPerPageMin = 1
 		out, err := memDB.SearchTweets(ctx, 1, 10, searchTerm, StatusVisible)

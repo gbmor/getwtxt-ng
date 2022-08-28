@@ -85,6 +85,9 @@ func (c *Config) parse() error {
 	if strings.TrimSpace(c.ServerConfig.AdminPassword) == "" {
 		return errors.New("please set admin_password in the configuration file")
 	}
+	if strings.TrimSpace(c.ServerConfig.DatabasePath) == "" {
+		c.ServerConfig.DatabasePath = ":memory:"
+	}
 
 	if c.ServerConfig.EntriesPerPageMax < 20 {
 		c.ServerConfig.EntriesPerPageMax = 20

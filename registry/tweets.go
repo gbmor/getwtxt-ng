@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -36,7 +37,15 @@ type Tweet struct {
 	URL      string                `json:"url"`
 	DateTime time.Time             `json:"datetime"`
 	Body     string                `json:"body"`
+	Mentions []Mention             `json:"mentions"`
+	Tags     []string              `json:"tags"`
 	Hidden   TweetVisibilityStatus `json:"hidden"`
+}
+
+// Mention represents a single mention of another user within a tweet.
+type Mention struct {
+	Nickname string `json:"nickname"`
+	URL      string `json:"url"`
 }
 
 type TweetVisibilityStatus int
@@ -45,6 +54,12 @@ const (
 	StatusVisible TweetVisibilityStatus = iota
 	StatusHidden
 )
+
+// RegexTweetContainsMentions is used to confirm if a tweet contains mentions and, if so, extract the nicks and URLs out as submatches.
+var RegexTweetContainsMentions = regexp.MustCompile(`@<(\w+)\s(\S+)>`)
+
+// RegexTweetContainsTags is used to confirm if a tweet contains tags and, if so, extract them.
+var RegexTweetContainsTags = regexp.MustCompile(`#(\w+)`)
 
 func FormatTweetsPlain(tweets []Tweet) string {
 	if len(tweets) < 1 {
@@ -81,7 +96,7 @@ func (d *DB) InsertTweets(ctx context.Context, tweets []Tweet) error {
 		_ = tx.Rollback()
 	}()
 
-	insertStmt := "INSERT OR IGNORE INTO tweets (user_id, dt, body) VALUES(?,?,?)"
+	insertStmt := "INSERT OR IGNORE INTO tweets (user_id, dt, body, contains_mentions, contains_tags) VALUES(?,?,?,?,?)"
 	stmt, err := tx.Prepare(insertStmt)
 	if err != nil {
 		return fmt.Errorf("could not prepare statement to insert tweets: %w", err)
@@ -91,7 +106,16 @@ func (d *DB) InsertTweets(ctx context.Context, tweets []Tweet) error {
 	}()
 
 	for _, t := range tweets {
-		if _, err := stmt.ExecContext(ctx, t.UserID, t.DateTime.UnixNano(), t.Body); err != nil {
+		hasMentions := 0
+		hasTags := 0
+		if RegexTweetContainsMentions.MatchString(t.Body) {
+			hasMentions = 1
+		}
+		if RegexTweetContainsTags.MatchString(t.Body) {
+			hasTags = 1
+		}
+
+		if _, err := stmt.ExecContext(ctx, t.UserID, t.DateTime.UnixNano(), t.Body, hasMentions, hasTags); err != nil {
 			return fmt.Errorf("could not insert tweet for uid %s at %s: %w", t.UserID, t.DateTime, err)
 		}
 	}
@@ -167,6 +191,27 @@ func (d *DB) GetTweets(ctx context.Context, page, perPage int, visibilityStatus 
 			continue
 		}
 		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
 		tweets = append(tweets, thisTweet)
 	}
 
@@ -175,8 +220,6 @@ func (d *DB) GetTweets(ctx context.Context, page, perPage int, visibilityStatus 
 
 // SearchTweets searches for a given term in tweet bodies and returns a page worth in descending order by datetime.
 func (d *DB) SearchTweets(ctx context.Context, page, perPage int, searchTerm string, visibilityStatus TweetVisibilityStatus) ([]Tweet, error) {
-	// SQLite expects the format %term% for arbitrary characters on either side of the search term.
-	searchTerm = fmt.Sprintf("%%%s%%", searchTerm)
 	page--
 	if perPage < d.EntriesPerPageMin {
 		perPage = d.EntriesPerPageMin
@@ -191,10 +234,9 @@ func (d *DB) SearchTweets(ctx context.Context, page, perPage int, searchTerm str
 	idCeil := idFloor + perPage
 
 	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
-					FROM (SELECT tweets.*, users.nick AS nick, users.url AS url, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
-					      FROM tweets LEFT JOIN users ON users.id = tweets.user_id WHERE tweets.hidden = ? AND body LIKE ?)
-					WHERE set_id > ?
-  					AND set_id <= ?`
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_search WHERE tweets_search.hidden = ? AND body MATCH ?)
+					WHERE set_id > ? AND set_id <= ?`
 	rows, err := d.conn.QueryContext(ctx, searchStmt, visibilityStatus, searchTerm, idFloor, idCeil)
 	if err != nil {
 		return nil, fmt.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
@@ -213,6 +255,283 @@ func (d *DB) SearchTweets(ctx context.Context, page, perPage int, searchTerm str
 			continue
 		}
 		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}
+
+// GetTags returns the most recent tweets containing tags.
+func (d *DB) GetTags(ctx context.Context, page, perPage int, visibilityStatus TweetVisibilityStatus) ([]Tweet, error) {
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_users WHERE hidden = ? AND contains_tags = 1)
+					WHERE set_id > ? AND set_id <= ?`
+	rows, err := d.conn.QueryContext(ctx, searchStmt, visibilityStatus, idFloor, idCeil)
+	if err != nil {
+		return nil, fmt.Errorf("when querying for tweets containing tags, %d - %d: %w", idFloor+1, idCeil, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &thisTweet.Nickname, &thisTweet.URL, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			d.logger.Debugf("when querying for tweets containing tags, %d - %d: %s", idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}
+
+// SearchTags searches for a given term in tweet bodies and returns a page worth in descending order by datetime.
+func (d *DB) SearchTags(ctx context.Context, page, perPage int, searchTerm string, visibilityStatus TweetVisibilityStatus) ([]Tweet, error) {
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_search WHERE tweets_search.hidden = ? AND tweets_search.contains_tags = 1 AND body MATCH ?)
+					WHERE set_id > ? AND set_id <= ?`
+	rows, err := d.conn.QueryContext(ctx, searchStmt, visibilityStatus, searchTerm, idFloor, idCeil)
+	if err != nil {
+		return nil, fmt.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &thisTweet.Nickname, &thisTweet.URL, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			d.logger.Debugf("when querying for tweets containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}
+
+// GetMentions retrieves the most recent tweets containing mentions.
+func (d *DB) GetMentions(ctx context.Context, page, perPage int, visibilityStatus TweetVisibilityStatus) ([]Tweet, error) {
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_users WHERE hidden = ? AND contains_mentions = 1)
+					WHERE set_id > ? AND set_id <= ?`
+	rows, err := d.conn.QueryContext(ctx, searchStmt, visibilityStatus, idFloor, idCeil)
+	if err != nil {
+		return nil, fmt.Errorf("when querying for tweets containing mentions, %d - %d: %w", idFloor+1, idCeil, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &thisTweet.Nickname, &thisTweet.URL, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			d.logger.Debugf("when querying for tweets containing mentions, %d - %d: %s", idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
+		tweets = append(tweets, thisTweet)
+	}
+
+	return tweets, nil
+}
+
+// SearchMentions searches for a given term in tweet bodies and returns a page worth in descending order by datetime.
+func (d *DB) SearchMentions(ctx context.Context, page, perPage int, searchTerm string, visibilityStatus TweetVisibilityStatus) ([]Tweet, error) {
+	page--
+	if perPage < d.EntriesPerPageMin {
+		perPage = d.EntriesPerPageMin
+	}
+	if perPage > d.EntriesPerPageMax {
+		perPage = d.EntriesPerPageMax
+	}
+	if page < 0 {
+		page = 0
+	}
+	idFloor := page * perPage
+	idCeil := idFloor + perPage
+
+	searchStmt := `SELECT id, user_id, nick, url, dt, body, hidden
+					FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY dt DESC) AS set_id
+					      FROM tweets_search WHERE tweets_search.hidden = ? AND tweets_search.contains_mentions = 1 AND body MATCH ?)
+					WHERE set_id > ? AND set_id <= ?`
+	rows, err := d.conn.QueryContext(ctx, searchStmt, visibilityStatus, searchTerm, idFloor, idCeil)
+	if err != nil {
+		return nil, fmt.Errorf("when querying for tweets containing %s, %d - %d: %w", searchTerm, idFloor+1, idCeil, err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	tweets := make([]Tweet, 0)
+	for rows.Next() {
+		dt := int64(0)
+		thisTweet := Tweet{}
+		err := rows.Scan(&thisTweet.ID, &thisTweet.UserID, &thisTweet.Nickname, &thisTweet.URL, &dt, &thisTweet.Body, &thisTweet.Hidden)
+		if err != nil {
+			d.logger.Debugf("when querying for tweets containing %s, %d - %d: %s", searchTerm, idFloor+1, idCeil+1, err)
+			continue
+		}
+		thisTweet.DateTime = time.Unix(0, dt)
+		mentions := RegexTweetContainsMentions.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Mentions = make([]Mention, 0, len(mentions))
+		for _, mention := range mentions {
+			if len(mention) < 3 {
+				continue
+			}
+			// first is the whole mention, we want the capture groups
+			thisMention := Mention{
+				Nickname: mention[1],
+				URL:      mention[2],
+			}
+			thisTweet.Mentions = append(thisTweet.Mentions, thisMention)
+		}
+		tags := RegexTweetContainsTags.FindAllStringSubmatch(thisTweet.Body, -1)
+		thisTweet.Tags = make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if len(tag) < 2 {
+				continue
+			}
+			thisTweet.Tags = append(thisTweet.Tags, tag[1])
+		}
 		tweets = append(tweets, thisTweet)
 	}
 
