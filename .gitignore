@@ -1,5 +1,6 @@
 /getwtxt-ng
 /adminPassGen
+/bulkUserAdd
 *.log
 logs/
 local/

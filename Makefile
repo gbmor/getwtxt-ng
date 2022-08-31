@@ -5,20 +5,26 @@ BINDIR?=$(_INSTDIR)/getwtxt-ng
 VERSION?=dev
 GOTAGS?=-tags 'fts5'
 GOFLAGS?=-ldflags '-s -w -X github.com/gbmor/getwtxt-ng/common.Version=${VERSION}'
+GOFLAGSLITE?=-ldflags '-s -w'
 
 all: clean build
 
 .PHONY: build
-build: getwtxt-ng adminPassGen
+build: getwtxt-ng adminPassGen bulkUserAdd
 
 getwtxt-ng:
-	@printf "Building getwtxt-ng.\n"
+	@printf "Building getwtxt-ng\n"
 	go build ${GOTAGS} ${GOFLAGS} ./cmd/getwtxt-ng
 	@printf "\n"
 
 adminPassGen:
 	@printf "Building adminPassGen\n"
-	go build -ldflags='-s -w' ./cmd/adminPassGen
+	go build ${GOFLAGSLITE} ./cmd/adminPassGen
+	@printf "\n"
+
+bulkUserAdd:
+	@printf "Building bulkUserAdd\n"
+	go build ${GOTAGS} ${GOFLAGSLITE} ./cmd/bulkUserAdd
 	@printf "\n"
 
 .PHONY: clean
@@ -27,6 +33,7 @@ clean:
 	go clean ./...
 	rm -f adminPassGen
 	rm -f getwtxt-ng
+	rm -f bulkUserAdd
 	@printf "\n"
 
 .PHONY: test
