@@ -20,6 +20,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,6 +72,7 @@ func (d *DB) FetchTwtxt(twtxtURL, userID string, lastModified time.Time) ([]Twee
 		return nil, fmt.Errorf("unable to read response body from %s: %w", twtxtURL, err)
 	}
 
+	body = bytes.TrimSpace(body)
 	bodySplit := strings.Split(string(body), "\n")
 	tweets := make([]Tweet, 0, 256)
 

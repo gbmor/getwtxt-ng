@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/gbmor/getwtxt-ng/common"
+	log "github.com/sirupsen/logrus"
 )
 
 // ErrNoUsersProvided is returned when user(s) were expected and not provided.
@@ -46,7 +47,7 @@ var ErrUserURLIsNotTwtxtFile = errors.New("user URL does not point to twtxt.txt"
 var RegexIsAlpha = regexp.MustCompile(`\w+`)
 
 // RegexURLIsTwtxtFile checks if the URL points to a twtxt.txt file.
-var RegexURLIsTwtxtFile = regexp.MustCompile(`/twtxt\.txt$`)
+var RegexURLIsTwtxtFile = regexp.MustCompile(`/twtxt\.txt$|/twtxt$|\.txt$`)
 
 // User represents a single twtxt.txt feed.
 // The URL must be unique, but the Nick doesn't.
@@ -159,7 +160,7 @@ func (d *DB) InsertUser(ctx context.Context, u *User) error {
 
 	userID, err := res.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("could not retrieve new user's ID")
+		return fmt.Errorf("could not retrieve new user's ID: %w", err)
 	}
 
 	u.ID = fmt.Sprintf("%d", userID)
@@ -169,6 +170,65 @@ func (d *DB) InsertUser(ctx context.Context, u *User) error {
 	}
 
 	return nil
+}
+
+// InsertUsers adds users to the database in bulk.
+func (d *DB) InsertUsers(ctx context.Context, users []User) ([]User, error) {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't begin transaction for bulk user insert: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	usersAdded := make([]User, 0, len(users))
+	for _, u := range users {
+		_, err := u.GeneratePasscode()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't generate passcode for bulk user insert: %w", err)
+		}
+		if u.URL == "" || u.Nick == "" || len(u.PasscodeHash) < 1 ||
+			!RegexIsAlpha.MatchString(u.Nick) {
+			return nil, ErrIncompleteUserInfo
+		}
+		parsedURL, urlParseErr := url.Parse(u.URL)
+		if urlParseErr != nil || parsedURL.Scheme == "" {
+			msg := fmt.Sprintf("Skipping %s during bulk add: incomplete info provided", u.URL)
+			log.Info(msg)
+			continue
+		}
+
+		if !RegexURLIsTwtxtFile.MatchString(u.URL) {
+			msg := fmt.Sprintf("Skipping %s during bulk add: does not appear to be a URL to a twtxt.txt file", u.URL)
+			log.Info(msg)
+			continue
+		}
+
+		if u.DateTimeAdded.IsZero() {
+			u.DateTimeAdded = time.Now().UTC()
+		}
+
+		res, err := tx.ExecContext(ctx, "INSERT INTO users (url, nick, passcode_hash, dt_added, last_sync) VALUES(?,?,?,?, 0)",
+			u.URL, u.Nick, u.PasscodeHash, u.DateTimeAdded.UnixNano())
+		if err != nil {
+			return nil, fmt.Errorf("when inserting user to DB during bulk insert: %w", err)
+		}
+
+		userID, err := res.LastInsertId()
+		if err != nil {
+			return nil, fmt.Errorf("could not retrieve new user's ID during bulk insert: %w", err)
+		}
+
+		u.ID = fmt.Sprintf("%d", userID)
+		usersAdded = append(usersAdded, u)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("error committing tx for bulk user insert: %w", err)
+	}
+
+	return usersAdded, nil
 }
 
 // DeleteUser removes a user and their tweets. Returns the number of tweets deleted.

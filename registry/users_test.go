@@ -129,7 +129,7 @@ func TestDB_InsertUser(t *testing.T) {
 	t.Run("URL to other file", func(t *testing.T) {
 		db := DB{}
 		thisUser := testUser
-		thisUser.URL = "https://example.com/config.txt"
+		thisUser.URL = "https://example.com/config.yaml"
 		err := db.InsertUser(ctx, &thisUser)
 		if !errors.Is(err, ErrUserURLIsNotTwtxtFile) {
 			t.Errorf("Expected ErrUserURLIsNotTwtxtFile, got: %s", err)

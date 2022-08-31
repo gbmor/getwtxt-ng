@@ -80,7 +80,7 @@ func main() {
 	s := &http.Server{
 		Handler:      handler,
 		Addr:         fmt.Sprintf("%s:%s", conf.ServerConfig.IP, conf.ServerConfig.Port),
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
 

@@ -19,6 +19,7 @@ along with getwtxt-ng.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,6 +45,123 @@ func addUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn
 		// should have 404'ed before this
 		http.Error(w, "404 Not Found", http.StatusNotFound)
 	}
+}
+
+func plainBulkAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	log.SetLevel(log.ErrorLevel)
+	defer log.SetLevel(log.InfoLevel)
+	ctx := r.Context()
+	w.Header().Set("Content-Type", "text/plain")
+	_ = r.ParseForm()
+	remoteURL := r.Form.Get("source")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	auth := r.Header.Get("X-Auth")
+	if auth == "" {
+		http.Error(w, "403 Forbidden", http.StatusForbidden)
+		return
+	}
+	if !common.ValidatePass(auth, []byte(conf.ServerConfig.AdminPassword)) {
+		http.Error(w, "403 Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if !common.IsValidURL(remoteURL, log.StandardLogger()) {
+		msg := fmt.Sprintf("400 Bad Request: couldn't parse %s as URL", remoteURL)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodGet, remoteURL, nil)
+	if err != nil {
+		log.Errorf("Couldn't create http request to fetch list of new users from %s: %s", remoteURL, err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	resp, err := dbConn.Client.Do(req)
+	if err != nil {
+		log.Errorf("Couldn't fetch list of new users from %s: %s", remoteURL, err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	usersToAdd := make([]registry.User, 0, 5)
+
+	bodyScanner := bufio.NewScanner(resp.Body)
+	for bodyScanner.Scan() {
+		line := bodyScanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		// This is to prevent variations of the same URL showing up multiple times.
+		// Eg: http://example.com/twtxt.txt vs https://example.com/twtxt.txt
+		// We're also chomping www. off.
+		parsedURL, err := url.Parse(fields[1])
+		if err != nil {
+			log.Errorf("couldn't parse %s as URL: %s", fields[1], err)
+			continue
+		}
+		host := strings.TrimPrefix(parsedURL.Host, "www.")
+		constructedURL := fmt.Sprintf("%s%s", host, parsedURL.Path)
+
+		userSearchOut, err := dbConn.SearchUsers(ctx, 1, conf.ServerConfig.EntriesPerPageMin, constructedURL)
+		if err != nil {
+			log.Errorf("While searching for user %s: %s", fields[1], err)
+			continue
+		}
+		if len(userSearchOut) > 0 {
+			continue
+		}
+		var dt time.Time
+		if len(fields) < 3 {
+			dt = time.Now()
+		} else {
+			dt, err = time.Parse(time.RFC3339, fields[2])
+			if err != nil {
+				dt, err = time.Parse(time.RFC3339Nano, fields[2])
+				if err != nil {
+					continue
+				}
+			}
+		}
+
+		thisUser := registry.User{
+			Nick:          fields[0],
+			URL:           fields[1],
+			DateTimeAdded: dt,
+		}
+		usersToAdd = append(usersToAdd, thisUser)
+	}
+
+	users, err := dbConn.InsertUsers(ctx, usersToAdd)
+	if err != nil {
+		log.Errorf("When bulk inserting users: %s", err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	for i, user := range users {
+		tweets, err := dbConn.FetchTwtxt(user.URL, user.ID, time.Time{})
+		if err != nil {
+			log.Errorf("Couldn't fetch tweets for %s: %s", user.URL, err)
+			continue
+		}
+		err = dbConn.InsertTweets(ctx, tweets)
+		if err != nil {
+			log.Errorf("Couldn't fetch tweets for %s: %s", user.URL, err)
+			continue
+		}
+		users[i].LastSync = time.Now()
+	}
+
+	plainUsersResp := registry.FormatUsersPlain(users)
+	plainResponseWrite(w, plainUsersResp, http.StatusOK)
 }
 
 func plainAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {

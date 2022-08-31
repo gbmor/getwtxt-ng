@@ -85,6 +85,9 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 		getTweetsHandler(w, r, dbConn, getFormat(r))
 	}).Methods(http.MethodGet, http.MethodHead)
 
+	r.HandleFunc("/api/plain/users/bulk", func(w http.ResponseWriter, r *http.Request) {
+		plainBulkAddUserHandler(w, r, conf, dbConn)
+	}).Methods(http.MethodPost)
 	r.HandleFunc("/api/{format:json|plain}/users", func(w http.ResponseWriter, r *http.Request) {
 		deleteUsersHandler(w, r, conf, dbConn, getFormat(r))
 	}).Methods(http.MethodDelete)
