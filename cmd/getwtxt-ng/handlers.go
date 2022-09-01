@@ -76,10 +76,19 @@ func versionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config) {
-	out := []byte("200 OK")
-	w.Header().Set("Content-Type", common.MimePlain)
-	if _, err := w.Write(out); err != nil {
-		log.Debugf("Index Handler: %s\n", err)
+func cssHandler(w http.ResponseWriter, _ *http.Request, conf *Config) {
+	w.Header().Set("Content-Type", "text/css")
+	if _, err := w.Write(conf.Assets.Stylesheet); err != nil {
+		log.Error(err)
+	}
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	w.Header().Set("Content-Type", "text/html")
+	conf.InstanceConfig.PopulateFields(r.Context(), dbConn)
+	if err := conf.Assets.IndexTemplate.Execute(w, conf.InstanceConfig); err != nil {
+		log.Error(err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
 	}
 }

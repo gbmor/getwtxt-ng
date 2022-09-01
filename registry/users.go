@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gbmor/getwtxt-ng/common"
@@ -61,6 +62,11 @@ type User struct {
 	LastSync      time.Time `json:"last_sync"`
 }
 
+// FormatUsersPlain formats the provided slice of User into plain text, with each LF-terminated line containing the following tab-separated values:
+//     - Nickname
+//     - URL
+//     - Timestamp Added (RFC3339)
+//     - Last Sync Time (RFC3339)
 func FormatUsersPlain(users []User) string {
 	if len(users) < 1 {
 		return ""
@@ -478,4 +484,22 @@ func (d *DB) SearchUsers(ctx context.Context, page, perPage int, searchTerm stri
 	}
 
 	return users, nil
+}
+
+// SetUserCount counts the users in the database and stores it in memory.
+func (d *DB) SetUserCount(ctx context.Context) error {
+	stmt := `SELECT count(*) FROM users`
+	out := uint32(0)
+	if err := d.conn.QueryRowContext(ctx, stmt).Scan(&out); err != nil {
+		return fmt.Errorf("failed to get user count: %w", err)
+	}
+
+	atomic.SwapUint32(&d.userCount, out)
+
+	return nil
+}
+
+// GetUserCount retrieves the current user count stored in memory.
+func (d *DB) GetUserCount() uint32 {
+	return atomic.LoadUint32(&d.userCount)
 }

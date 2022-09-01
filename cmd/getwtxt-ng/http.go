@@ -101,7 +101,10 @@ func setUpRoutes(r *mux.Router, conf *Config, dbConn *registry.DB) {
 	r.HandleFunc("/api/{format:json|plain}/version", versionHandler).
 		Methods(http.MethodGet, http.MethodHead)
 
+	r.HandleFunc("/css", func(w http.ResponseWriter, r *http.Request) {
+		cssHandler(w, r, conf)
+	}).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		indexHandler(w, r, conf)
+		indexHandler(w, r, conf, dbConn)
 	}).Methods(http.MethodGet, http.MethodHead)
 }

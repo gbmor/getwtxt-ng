@@ -192,7 +192,16 @@ func TestConfig_parse(t *testing.T) {
 		}
 		tmpFilePath := fd.Name()
 		defer os.Remove(tmpFilePath)
-		contents := fmt.Sprintf("[server_config]\nadmin_password = \"hunter2\"\nfetch_interval = \"1h\"\nmessage_log = \"%s\"\nrequest_log = \"%s\"", msgLogPath, reqLogPath)
+		contents := fmt.Sprintf(`[server_config]
+admin_password = "hunter2"
+fetch_interval = "1h"
+message_log = "%s"
+request_log = "%s"
+template_path_index = "%s"
+template_path_plain_docs = "%s"
+template_path_json_docs = "%s"
+stylesheet_path = "%s"`,
+			msgLogPath, reqLogPath, tmpFilePath, tmpFilePath, tmpFilePath, tmpFilePath)
 		_, _ = fd.Write([]byte(contents))
 		_ = fd.Close()
 		conf, err := readConfig(tmpFilePath)

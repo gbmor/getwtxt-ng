@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="application-name" content="getwtxt-ng {{.Version}}">
+    <link rel="stylesheet" type="text/css" href="/css">
+    <title>{{.SiteName}} - twtxt Registry</title>
+</head>
+
+<body>
+<header>
+    <h2>{{.SiteName}}</h2>
+    <h4>twtxt registry</h4>
+    <nav>
+        <a href="/docs/plain.html">Plain API Docs</a>
+        <a href="/docs/json.html">JSON API Docs</a>
+    </nav>
+</header>
+<main style="width:60%;margin: 0 auto">
+    <p style="text-align: center; font-size: 1.44rem">{{.SiteDescription}}</p>
+    <p class="notice">
+        <strong>Instance Owner:</strong><br>
+        <span style="padding-left:1em">{{.OwnerName}}</span><br>
+        <strong>Mail:</strong><br>
+        <span style="padding-left:1em">{{.OwnerEmail}}</span><br>
+        <br>
+    <p style="text-align: center">
+        <strong>Users</strong>: {{.UserCount}}<br>
+        <strong>Tweets</strong>: {{.TweetCount}}<br>
+    </p>
+</main>
+</body>
+</html>

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -61,6 +62,11 @@ var RegexTweetContainsMentions = regexp.MustCompile(`@<(\w+)\s(\S+)>`)
 // RegexTweetContainsTags is used to confirm if a tweet contains tags and, if so, extract them.
 var RegexTweetContainsTags = regexp.MustCompile(`#(\w+)`)
 
+// FormatTweetsPlain formats the provided slice of Tweet into plain text, with each LF-terminated line containing the following tab-separated values:
+//     - Nickname
+//     - URL
+//     - Timestamp (RFC3339)
+//     - Body
 func FormatTweetsPlain(tweets []Tweet) string {
 	if len(tweets) < 1 {
 		return ""
@@ -536,4 +542,22 @@ func (d *DB) SearchMentions(ctx context.Context, page, perPage int, searchTerm s
 	}
 
 	return tweets, nil
+}
+
+// SetTweetCount counts the tweets in the database and stores it in memory.
+func (d *DB) SetTweetCount(ctx context.Context) error {
+	stmt := `SELECT count(*) FROM tweets`
+	out := uint32(0)
+	if err := d.conn.QueryRowContext(ctx, stmt).Scan(&out); err != nil {
+		return fmt.Errorf("failed to get tweet count: %w", err)
+	}
+
+	atomic.SwapUint32(&d.tweetCount, out)
+
+	return nil
+}
+
+// GetTweetCount retrieves the current tweet count stored in memory.
+func (d *DB) GetTweetCount() uint32 {
+	return atomic.LoadUint32(&d.tweetCount)
 }

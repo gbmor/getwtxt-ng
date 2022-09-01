@@ -44,6 +44,9 @@ type DB struct {
 	// Client is the default HTTP client, which has a 5-second timeout.
 	Client *http.Client
 
+	userCount  uint32
+	tweetCount uint32
+
 	logger *log.Logger
 	conn   *sql.DB
 }

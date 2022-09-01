@@ -15,7 +15,7 @@ for tags and key words.
 ## Notes
 * twtxt Information: [`twtxt.readthedocs.io`](https://twtxt.readthedocs.io)
 * Registry Specification: [`twtxt.readthedocs.io/en/latest/user/registry.html`](https://twtxt.readthedocs.io/en/latest/user/registry.html)
-* Special thanks to [`github.com/kognise/water.css`](https://github.com/kognise/water.css) for open-sourcing a pleasant, easy-to-use stylesheet
+* getwtxt-ng uses [`github.com/kevquirk/simple.css`](https://github.com/kevquirk/simple.css) for the index and documentation web pages.
 
 ## Contributing
 All contributions are greatly appreciated!
