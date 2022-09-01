@@ -290,12 +290,18 @@ func (d *DB) DeleteUsers(ctx context.Context, urls []string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("when preparing stmt to delete tweets from %d users: %w", userCount, err)
 	}
+	defer func() {
+		_ = delTweetsStmt.Close()
+	}()
 
 	delUserStmtStr := "DELETE FROM users WHERE url = ?"
 	delUserStmt, err := tx.Prepare(delUserStmtStr)
 	if err != nil {
 		return 0, fmt.Errorf("when preparing stmt to delete %d users: %w", userCount, err)
 	}
+	defer func() {
+		_ = delUserStmt.Close()
+	}()
 
 	for _, user := range urls {
 		tweetRes, err := delTweetsStmt.ExecContext(ctx, user)
@@ -364,6 +370,67 @@ func (d *DB) GetUsers(ctx context.Context, page, perPage int) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+// GetAllUsers retrieves all users without pagination.
+func (d *DB) GetAllUsers(ctx context.Context) ([]User, error) {
+	userStmt := `SELECT id, url, nick, dt_added, last_sync FROM users`
+	rows, err := d.conn.QueryContext(ctx, userStmt)
+	if err != nil {
+		return nil, fmt.Errorf("when querying for all users: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	users := make([]User, 0)
+	for rows.Next() {
+		dt := int64(0)
+		ls := int64(0)
+		thisUser := User{}
+		err := rows.Scan(&thisUser.ID, &thisUser.URL, &thisUser.Nick, &dt, &ls)
+		if err != nil {
+			d.logger.Debugf("when querying for all users: %s", err)
+			continue
+		}
+		thisUser.DateTimeAdded = time.Unix(0, dt)
+		thisUser.LastSync = time.Unix(0, ls)
+		users = append(users, thisUser)
+	}
+
+	return users, nil
+}
+
+func (d *DB) UpdateUsersSyncTime(ctx context.Context, users []User) error {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	updateStmtStr := `UPDATE users SET last_sync = ? WHERE id = ?`
+	updateStmt, err := tx.Prepare(updateStmtStr)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = updateStmt.Close()
+	}()
+
+	for _, e := range users {
+		_, err := updateStmt.ExecContext(ctx, e.LastSync.UnixNano(), e.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update users sync time at user %s: %w", e.URL, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to update users sync time: %w", err)
+	}
+
+	return nil
 }
 
 // SearchUsers returns a paginated list of users whose nicknames or URLs match the query.

@@ -52,8 +52,6 @@ func main() {
 	}
 	log.SetOutput(conf.ServerConfig.MessageLogFd)
 
-	signalWatcher(conf, log.StandardLogger())
-
 	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath,
 		conf.ServerConfig.EntriesPerPageMax,
 		conf.ServerConfig.EntriesPerPageMin,
@@ -63,6 +61,9 @@ func main() {
 		log.Errorf("Could not initialize database: %s", err)
 		os.Exit(1)
 	}
+
+	tickerExitChan := InitTicker(conf.ServerConfig.FetchInterval, dbConn)
+	signalWatcher(conf, tickerExitChan, log.StandardLogger())
 
 	r := mux.NewRouter()
 	setUpRoutes(r, conf, dbConn)

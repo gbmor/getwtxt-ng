@@ -120,7 +120,7 @@ func plainBulkAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Confi
 		}
 		var dt time.Time
 		if len(fields) < 3 {
-			dt = time.Now()
+			dt = time.Now().UTC()
 		} else {
 			dt, err = time.Parse(time.RFC3339, fields[2])
 			if err != nil {
@@ -157,7 +157,7 @@ func plainBulkAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Confi
 			log.Errorf("Couldn't fetch tweets for %s: %s", user.URL, err)
 			continue
 		}
-		users[i].LastSync = time.Now()
+		users[i].LastSync = time.Now().UTC()
 	}
 
 	plainUsersResp := registry.FormatUsersPlain(users)

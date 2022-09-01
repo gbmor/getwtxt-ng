@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func signalWatcher(conf *Config, logger *log.Logger) {
+func signalWatcher(conf *Config, tickerExit chan<- struct{}, logger *log.Logger) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGHUP)
 
@@ -36,6 +36,10 @@ func signalWatcher(conf *Config, logger *log.Logger) {
 			case syscall.SIGINT:
 				conf.mu.Lock()
 				logger.Infof("Caught %s", sig)
+
+				logger.Info("Shutting down sync ticker")
+				tickerExit <- struct{}{}
+
 				logger.Info("Closing log files and switching to stderr")
 				logger.SetOutput(os.Stderr)
 
