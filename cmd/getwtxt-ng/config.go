@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -85,7 +84,7 @@ type Assets struct {
 
 // Reads the config file directly into a *Config without doing any additional parsing.
 func readConfig(path string) (*Config, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("can't read contents of config file: %w", err)
 	}

@@ -4,8 +4,10 @@
 #    admin_password
 #    message_log
 #    fetch_interval
-#    assets_directory
-#    static_files_directory
+#    template_path_index
+#    template_path_plain_docs
+#    template_path_json_docs
+#    stylesheet_path
 #    entries_per_page_max
 #    entries_per_page_min
 #    site_name
