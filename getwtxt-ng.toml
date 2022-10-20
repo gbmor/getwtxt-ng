@@ -25,8 +25,10 @@ database_path = "getwtxt-ng.db"
 message_log = "message.log"
 request_log = "request.log"
 fetch_interval = "1h"
-assets_directory = "assets"
-static_files_directory = "static"
+template_path_index = "assets/index.tmpl"
+template_path_plain_docs = "assets/docs-plain.tmpl"
+template_path_json_docs = "assets/docs-json.tmpl"
+stylesheet_path = "assets/simple.css"
 debug_mode = false
 
 # max must be at least 20, min must be at least 10

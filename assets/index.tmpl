@@ -26,10 +26,17 @@
         <strong>Mail:</strong><br>
         <span style="padding-left:1em">{{.OwnerEmail}}</span><br>
         <br>
+    </p>
     <p style="text-align: center">
         <strong>Users</strong>: {{.UserCount}}<br>
         <strong>Tweets</strong>: {{.TweetCount}}<br>
     </p>
+    <strong>Endpoints</strong><br>
+    <pre><code>/api/{json,plain}/users
+/api/{json,plain}/mentions
+/api/{json,plain}/tweets
+/api/{json,plain}/tags
+/api/{json,plain}/version</code></pre>
 </main>
 </body>
 </html>

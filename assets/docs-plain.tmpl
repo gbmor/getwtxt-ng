@@ -1,0 +1,122 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="application-name" content="getwtxt-ng {{.Version}}">
+    <link rel="stylesheet" type="text/css" href="/css">
+    <title>{{.SiteName}} - twtxt Registry</title>
+</head>
+
+<body>
+<header>
+    <h2>{{.SiteName}}</h2>
+    <h4>twtxt registry</h4>
+    <nav>
+        <a href="/docs/plain.html">Plain API Docs</a>
+        <a href="/docs/json.html">JSON API Docs</a>
+    </nav>
+</header>
+<main>
+    <a id="main"></a>
+    <h3 style="text-align: center">Plain API Docs</h3>
+    <p>
+        Retrieve the version of the instance by issuing a <code>GET</code> request to the
+        <code>/api/plain/version</code>
+        endpoint.
+    </p>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/version'
+getwtxt-ng {{.Version}}</code></pre>
+
+    <h4>Deleting Users</h4>
+    <p>
+        Delete a user by issuing a <code>DELETE</code> request to the <code>/api/plain/users</code> endpoint. This
+        must include the <code>X-Auth</code> header with either the password returned after adding a user, or the admin
+        password specified during configuration.
+    </p>
+    <pre><code>$ curl -X DELETE -H 'X-Auth: mypassword' '{{.SiteURL}}/api/plain/users?url=https://foo.ext/twtxt.txt'
+200 OK</code></pre>
+
+    <h4>Add a User</h4>
+    <p>
+        Add new user by submitting a <code>POST</code> request to the <code>/api/plain/users</code> endpoint.
+        If both <code>?url=X</code> and <code>?nickname=X</code> are not passed, or the user already exists in
+        this registry, you will receive <code>400 Bad Request</code> as a response. If you are unsure what went
+        wrong, the error message should provide enough information for you to correct the request. On success,
+        you will receive a 200.
+    </p>
+    <p>To bulk add users, see the <a href="#admin">Administration</a> section below.</p>
+    <pre><code>$ curl -X POST '{{.SiteURL}}/api/plain/users?url=https://foo.ext/twtxt.txt&amp;nickname=foobar'
+You have been added! Your user's generated passcode is: d34db33f</code></pre>
+
+    <h4>Querying the Registry</h4>
+    <p>
+        Query responses are in descending chronological order. This means the newest user or tweet will be in the
+        first row of the response, with older users or tweets in subsequent rows. Additionally, all queries accept
+        <code>?page=N</code>
+        as a parameter, returning groups of 20 results. This may be omitted for the first page of results.
+    </p>
+    <h4>Columns are tab delimited:</h4>
+    <pre><code>Users:  Nickname, URL, Date, Last Sync
+Tweets: Nickname, URL, Date, Body</code></pre>
+
+    <h4>Get all users:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/users'
+foo               https://example.com/twtxt.txt     2019-05-09T08:42:23.000Z    2022-10-19T00:00:00.000Z
+foobar            https://example2.com/twtxt.txt    2019-04-14T19:23:00.000Z    2022-10-19T00:00:00.000Z
+foo_barrington    https://example3.com/twtxt.txt    2019-03-01T15:59:39.000Z    2022-10-19T00:00:00.000Z</code></pre>
+    <h4>Query for user by URL:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/users?url=https://example3.com/twtxt.txt'
+foo_barrington    https://example3.com/twtxt.txt    2019-05-01T15:59:39.000Z    2022-10-19T00:00:00.000Z</code></pre>
+    <h4>Query for user by keyword:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/users?q=bar'
+foobar            https://example2.com/twtxt.txt    2019-05-14T19:23:00.000Z    2022-10-19T00:00:00.000Z
+foo_barrington    https://example3.com/twtxt.txt    2019-04-01T15:59:39.000Z    2022-10-19T00:00:00.000Z</code></pre>
+    <h4>Get all tweets:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/tweets'
+foobar    https://example2.com/twtxt.txt    2019-05-13T12:46:20.000Z    It's been a busy day at work!
+...</code></pre>
+    <h4>Query tweets by keyword:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/tweets?q=getwtxt'
+foo_barrington    https://example3.com/twtxt.txt    2019-04-30T06:00:09.000Z    I just installed getwtxt</code></pre>
+    <h4>Get all tweets with tags:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/tags'
+foo    https://example.com/twtxt.txt    2019-03-01T09:33:12.000Z    No, seriously, I need #help
+foo    https://example.com/twtxt.txt    2019-03-01T09:32:05.000Z    Seriously, I love #programming!
+foo    https://example.com/twtxt.txt    2019-03-01T09:31:02.000Z    I love #programming!</code></pre>
+    <h4>Query tweets by tag:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/tags/programming'
+foo    https://example.com/twtxt.txt    2019-03-01T09:31:02.000Z    I love #programming!</code></pre>
+    <h4>Get all tweets with mentions:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/mentions'
+foo               https://example.com/twtxt.txt     2019-02-28T11:06:44.000Z    @&lt;foo_barrington https://example3.com/twtxt.txt&gt; Hey!! Are you still working on that project?
+bar               https://mxmmplm.com/twtxt.txt     2019-02-27T11:06:44.000Z    @&lt;foobar https://example2.com/twtxt.txt&gt; How's your day going, bud?
+foo_barrington    https://example3.com/twtxt.txt    2019-02-26T11:06:44.000Z    @&lt;foo https://example.com/twtxt.txt&gt; Did you eat my lunch?</code></pre>
+    <h4>Query tweets by mention URL:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/plain/mentions?url=https://foobarrington.co.uk/twtxt.txt'
+foo    https://example.com/twtxt.txt    2019-02-26T11:06:44.000Z    @&lt;foo_barrington https://example3.com/twtxt.txt&gt; Hey!! Are you still working on that project?</code></pre>
+    <h3 style="text-align: center"><a id="admin"></a>Administration</h3>
+    <p>
+        Some additional functionality is provided to make administration easier, such as deletion of users and bulk adding users.
+    </p>
+    <h4>Delete a User:</h4>
+    <p>See <a href="#main">above</a> API documentation.</p>
+    <h4>Bulk Adding Users:</h4>
+    <p>
+        A POST request to the <code>/api/plain/users/bulk</code> endpoint must include the parameter <code>source</code>,
+        containing the URL to a plain text file containing tab-separated rows. The fields must be: <code>nickname</code>,
+        <code>url</code>, and optionally <code>date added</code>. The response will be in the same format, containing the
+        users added plus the additional last sync time column.
+    </p>
+    <p>The request must include the <code>X-Auth</code> header containing the administrator password.</p>
+    <pre><code>$ curl -X POST -H 'X-Auth: admin_password' '{{.SiteURL}}/api/plain/users/bulk?source=https://oldinstance.{{.SiteURL}}/api/plain/users'
+foo               https://example.com/twtxt.txt     2019-05-09T08:42:23.000Z    2022-10-19T00:00:00.000Z
+foobar            https://example2.com/twtxt.txt    2019-04-14T19:23:00.000Z    2022-10-19T00:00:00.000Z
+foo_barrington    https://example3.com/twtxt.txt    2019-03-01T15:59:39.000Z    2022-10-19T00:00:00.000Z</code></pre>
+</main>
+    <footer style="padding: 2em; text-align: center">
+        powered by <a href="https://github.com/gbmor/getwtxt-ng">getwtxt-ng</a>
+    </footer>
+</body>
+</html>

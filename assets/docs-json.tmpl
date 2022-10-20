@@ -1,0 +1,247 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="application-name" content="getwtxt-ng {{.Version}}">
+    <link rel="stylesheet" type="text/css" href="/css">
+    <title>{{.SiteName}} - twtxt Registry</title>
+</head>
+
+<body>
+<header>
+    <h2>{{.SiteName}}</h2>
+    <h4>twtxt registry</h4>
+    <nav>
+        <a href="/docs/json.html">Plain API Docs</a>
+        <a href="/docs/json.html">JSON API Docs</a>
+    </nav>
+</header>
+<main>
+    <a id="main"></a>
+    <h3 style="text-align: center">JSON API Docs</h3>
+    <p>
+        Retrieve the version of the instance by issuing a <code>GET</code> request to the
+        <code>/api/json/version</code>
+        endpoint.
+    </p>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/version'
+{
+  "message": "getwtxt-ng {{.Version}}"
+}</code></pre>
+
+    <h4>Deleting Users</h4>
+    <p>
+        Delete a user by issuing a <code>DELETE</code> request to the <code>/api/json/users</code> endpoint. This
+        must include the <code>X-Auth</code> header with either the password returned after adding a user, or the admin
+        password specified during configuration.
+    </p>
+    <pre><code>$ curl -X DELETE -H 'X-Auth: mypassword' '{{.SiteURL}}/api/json/users?url=https://foo.ext/twtxt.txt'
+{
+  "message": "Deleted users successfully",
+  "users_deleted": 1,
+  "tweets_deleted": 34
+}</code></pre>
+
+    <h4>Add a User</h4>
+    <p>
+        Add new user by submitting a <code>POST</code> request to the <code>/api/json/users</code> endpoint.
+        If both <code>?url=X</code> and <code>?nickname=X</code> are not passed, or the user already exists in
+        this registry, you will receive <code>400 Bad Request</code> as a response. If you are unsure what went
+        wrong, the error message should provide enough information for you to correct the request. On success,
+        you will receive a 200.
+    </p>
+    <p>To bulk add users, see the <a href="#admin">Administration</a> section below.</p>
+    <pre><code>$ curl -X POST '{{.SiteURL}}/api/json/users?url=https://foo.ext/twtxt.txt&amp;nickname=foobar'
+{
+  "message": "You have been added and your passcode has been generated.",
+  "passcode": "d34db33f"
+}</code></pre>
+
+    <h4>Querying the Registry</h4>
+    <p>
+        Query responses are in descending chronological order. This means the newest user or tweet will be in the
+        first row of the response, with older users or tweets in subsequent rows. Additionally, all queries accept
+        <code>?page=N</code>
+        as a parameter, returning groups of 20 results. This may be omitted for the first page of results.
+    </p>
+
+    <h4>Get all users:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/users'
+[
+  {
+    "id": 3,
+    "nickname": "foo",
+    "url": "https://example.com/twtxt.txt",
+    "datetime_added": "2019-05-09T08:42:23.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "nickname": "foobar",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime_added": "2019-04-14T19:23:00.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  },
+  {
+    "id": 1,
+    "nickname": "foo_barrington",
+    "url": "https://example3com/twtxt.txt",
+    "datetime_added": "2019-03-01T15:59:39.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  }
+]</code></pre>
+    <h4>Query for user by URL:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/users?url=https://example3.com/twtxt.txt'
+[
+  {
+    "id": 1,
+    "nickname": "foo_barrington",
+    "url": "https://example3com/twtxt.txt",
+    "datetime_added": "2019-03-01T15:59:39.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  }
+]</code></pre>
+    <h4>Query for user by keyword:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/users?q=bar'
+[
+  {
+    "id": 2,
+    "nickname": "foobar",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime_added": "2019-04-14T19:23:00.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  },
+  {
+    "id": 1,
+    "nickname": "foo_barrington",
+    "url": "https://example3com/twtxt.txt",
+    "datetime_added": "2019-03-01T15:59:39.000Z",
+    "last_sync": "2022-10-19T00:00:00.000Z"
+  }
+]</code></pre>
+    <h4>Get all tweets:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/tweets'
+[
+  {
+    "id": "12",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T12:46:20.000Z",
+    "body": "It's been a busy day at work!",
+    "mentions": [],
+    "tags": [],
+    "hidden": 0
+  }
+]</code></pre>
+    <h4>Query tweets by keyword:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/tweets?q=getwtxt'
+[
+  {
+    "id": "13",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T13:46:20.000Z",
+    "body": "I just installed getwtxt!",
+    "mentions": [],
+    "tags": [],
+    "hidden": 0
+  }
+]</code></pre>
+    <h4>Get all tweets with tags:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/tags'
+[
+  {
+    "id": "14",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T14:46:20.000Z",
+    "body": "I love #programming!",
+    "mentions": [],
+    "tags": [
+      "programming"
+    ],
+    "hidden": 0
+  }
+]</code></pre>
+    <h4>Query tweets by tag:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/tags/programming'
+[
+  {
+    "id": "14",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T14:46:20.000Z",
+    "body": "I love #programming!",
+    "mentions": [],
+    "tags": [
+      "programming"
+    ],
+    "hidden": 0
+  }
+]</code></pre>
+    <h4>Get all tweets with mentions:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/mentions'
+[
+  {
+    "id": "15",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T15:46:20.000Z",
+    "body": "Hey @&lt;foo_barrington https://example3.com/twtxt.txt&gt; are you still working on that #project",
+    "mentions": [
+      {
+        "nickname": "foo_barrington",
+        "url": "https://example3.com/twtxt.txt"
+      }
+    ],
+    "tags": [
+      "project"
+    ],
+    "hidden": 0
+  }
+]</code></pre>
+    <h4>Query tweets by mention URL:</h4>
+    <pre><code>$ curl '{{.SiteURL}}/api/json/mentions?url=https://example3.com/twtxt.txt'
+[
+  {
+    "id": "15",
+    "user_id": "3",
+    "nickname": "foo",
+    "url": "https://example2.com/twtxt.txt",
+    "datetime": "2019-05-13T15:46:20.000Z",
+    "body": "Hey @&lt;foo_barrington https://example3.com/twtxt.txt&gt; are you still working on that #project",
+    "mentions": [
+      {
+        "nickname": "foo_barrington",
+        "url": "https://example3.com/twtxt.txt"
+      }
+    ],
+    "tags": [
+      "project"
+    ],
+    "hidden": 0
+  }
+]</code></pre>
+    <h3 style="text-align: center"><a id="admin"></a>Administration</h3>
+    <p>
+        Some additional functionality is provided to make administration easier, such as deletion of users and bulk adding users.
+    </p>
+    <h4>Delete a User:</h4>
+    <p>See <a href="#main">above</a> API documentation.</p>
+    <h4>Bulk Adding Users:</h4>
+    <p>
+        This is only supported via the <a href="/docs/plain.html#admin">Plain API</a>.
+    </p>
+</main>
+<footer style="padding: 2em; text-align: center">
+    powered by <a href="https://github.com/gbmor/getwtxt-ng">getwtxt-ng</a>
+</footer>
+</body>
+</html>

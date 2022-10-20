@@ -89,6 +89,23 @@ func indexHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *
 	if err := conf.Assets.IndexTemplate.Execute(w, conf.InstanceConfig); err != nil {
 		log.Error(err)
 		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		return
+	}
+}
+
+func plainDocsHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	w.Header().Set("Content-Type", "text/html")
+	conf.InstanceConfig.PopulateFields(r.Context(), dbConn)
+	if err := conf.Assets.PlainDocsTemplate.Execute(w, conf.InstanceConfig); err != nil {
+		log.Error(err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func jsonDocsHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB) {
+	w.Header().Set("Content-Type", "text/html")
+	conf.InstanceConfig.PopulateFields(r.Context(), dbConn)
+	if err := conf.Assets.JSONDocsTemplate.Execute(w, conf.InstanceConfig); err != nil {
+		log.Error(err)
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 	}
 }

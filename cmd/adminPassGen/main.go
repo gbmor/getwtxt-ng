@@ -22,5 +22,5 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	fmt.Println(out)
+	fmt.Println(string(out))
 }
