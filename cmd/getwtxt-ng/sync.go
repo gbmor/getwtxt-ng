@@ -52,7 +52,8 @@ func pullAllTweets(dbConn *registry.DB) error {
 			continue
 		}
 		if err := dbConn.InsertTweets(ctx, tweets); err != nil {
-			return fmt.Errorf("couldn't insert tweets for user %s during sync: %w", e.URL, err)
+			log.Errorf("couldn't insert tweets for user %s during sync: %s", e.URL, err)
+			continue
 		}
 		users[i].LastSync = time.Now().UTC()
 		usersSynced = append(usersSynced, users[i])

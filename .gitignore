@@ -7,3 +7,4 @@ local/
 *.db/
 *.db
 /.idea
+/getwtxt-ng.toml
