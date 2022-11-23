@@ -17,6 +17,9 @@ jobs:
         with:
           version: latest
 
+      - name: govulncheck
+        uses: elgohr/go-vulncheck-action@v1
+
       - name: Build getwtxt-ng
         run: make getwtxt-ng
 
