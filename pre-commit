@@ -2,4 +2,6 @@
 
 printf 'Running golangci-lint...\n'
 golangci-lint run
+printf 'Running govulncheck...\n'
+govulncheck ./...
 make test

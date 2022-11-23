@@ -13,31 +13,35 @@ all: clean build
 build: getwtxt-ng adminPassGen bulkUserAdd
 
 getwtxt-ng:
-	@printf "Building getwtxt-ng\n"
+	@printf 'Building getwtxt-ng\n'
 	go build ${GOTAGS} ${GOFLAGS} ./cmd/getwtxt-ng
-	@printf "\n"
 
 adminPassGen:
-	@printf "Building adminPassGen\n"
+	@printf 'Building adminPassGen\n'
 	go build ${GOFLAGSLITE} ./cmd/adminPassGen
-	@printf "\n"
 
 bulkUserAdd:
-	@printf "Building bulkUserAdd\n"
+	@printf 'Building bulkUserAdd\n'
 	go build ${GOTAGS} ${GOFLAGSLITE} ./cmd/bulkUserAdd
-	@printf "\n"
 
 .PHONY: clean
 clean:
-	@printf "%s\n" "Cleaning build."
+	@printf 'Cleaning build.\n'
 	go clean ./...
 	rm -f adminPassGen
 	rm -f getwtxt-ng
 	rm -f bulkUserAdd
-	@printf "\n"
 
 .PHONY: test
 test:
-	@printf "%s\n" "Running tests."
+	@printf 'Running tests.\n'
 	go test ${GOTAGS} -race ./...
-	@printf "\n"
+
+.PHONY: dev-deps
+dev-deps:
+	@printf 'Installing golangci-lint@latest\n'
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@printf 'Installing govulncheck@latest\n'
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	@printf 'Installing pre-commit hook\n'
+	@if [ ! -f .git/hooks/pre-commit ]; then ln -s $(shell pwd)/pre-commit .git/hooks/pre-commit; fi

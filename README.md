@@ -24,3 +24,14 @@ A reference instance can be found at [`twtxt.tilde.institute`](https://twtxt.til
 
 ## Contributing
 All contributions are greatly appreciated!
+
+A make target is included that will enable the pre-commit hook, install `golangci-lint`, and install `govulncheck` if you need it:
+
+```text
+$ make dev-deps
+```
+
+If you already have `golangci-lint` and `govulncheck` installed, then be sure to use the pre-commit hook.
+```text
+$ ln -s $(pwd)/pre-commit .git/hooks/pre-commit
+```
