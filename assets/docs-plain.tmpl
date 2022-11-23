@@ -110,7 +110,7 @@ foo    https://example.com/twtxt.txt    2019-02-26T11:06:44.000Z    @&lt;foo_bar
         users added plus the additional last sync time column.
     </p>
     <p>The request must include the <code>X-Auth</code> header containing the administrator password.</p>
-    <pre><code>$ curl -X POST -H 'X-Auth: admin_password' '{{.SiteURL}}/api/plain/users/bulk?source=https://oldinstance.{{.SiteURL}}/api/plain/users'
+    <pre><code>$ curl -X POST -H 'X-Auth: admin_password' '{{.SiteURL}}/api/plain/users/bulk?source=https://my-old-instance/api/plain/users'
 foo               https://example.com/twtxt.txt     2019-05-09T08:42:23.000Z    2022-10-19T00:00:00.000Z
 foobar            https://example2.com/twtxt.txt    2019-04-14T19:23:00.000Z    2022-10-19T00:00:00.000Z
 foo_barrington    https://example3.com/twtxt.txt    2019-03-01T15:59:39.000Z    2022-10-19T00:00:00.000Z</code></pre>
