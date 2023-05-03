@@ -40,7 +40,7 @@ type Tweet struct {
 	Body     string                `json:"body"`
 	Mentions []Mention             `json:"mentions"`
 	Tags     []string              `json:"tags"`
-	Hidden   TweetVisibilityStatus `json:"hidden"`
+	Hidden   TweetVisibilityStatus `json:"hidden,omitempty"`
 }
 
 // Mention represents a single mention of another user within a tweet.
@@ -63,10 +63,10 @@ var RegexTweetContainsMentions = regexp.MustCompile(`@<(\w+)\s(\S+)>`)
 var RegexTweetContainsTags = regexp.MustCompile(`#(\w+)`)
 
 // FormatTweetsPlain formats the provided slice of Tweet into plain text, with each LF-terminated line containing the following tab-separated values:
-//     - Nickname
-//     - URL
-//     - Timestamp (RFC3339)
-//     - Body
+//   - Nickname
+//   - URL
+//   - Timestamp (RFC3339)
+//   - Body
 func FormatTweetsPlain(tweets []Tweet) string {
 	if len(tweets) < 1 {
 		return ""
