@@ -11,12 +11,12 @@ require (
 	github.com/ogier/pflag v0.0.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/throttled/throttled/v2 v2.9.0
-	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+	golang.org/x/crypto v0.1.0
+	golang.org/x/term v0.1.0
 )
 
 require (
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
