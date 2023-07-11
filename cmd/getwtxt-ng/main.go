@@ -24,12 +24,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/gbmor/getwtxt-ng/common"
-	"github.com/gbmor/getwtxt-ng/registry"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/ogier/pflag"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/common"
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 var flagConfig = pflag.StringP("config", "c", "getwtxt-ng.toml", "path to config file")

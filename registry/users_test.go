@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/gbmor/getwtxt-ng/common"
 )
 

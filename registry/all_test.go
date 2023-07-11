@@ -27,8 +27,9 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/gbmor/getwtxt-ng/common"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/common"
 )
 
 var testTwtxtFile = fmt.Sprintf(`

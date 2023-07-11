@@ -31,8 +31,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gbmor/getwtxt-ng/common"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/common"
 )
 
 // ErrNoUsersProvided is returned when user(s) were expected and not provided.
@@ -63,10 +64,10 @@ type User struct {
 }
 
 // FormatUsersPlain formats the provided slice of User into plain text, with each LF-terminated line containing the following tab-separated values:
-//     - Nickname
-//     - URL
-//     - Timestamp Added (RFC3339)
-//     - Last Sync Time (RFC3339)
+//   - Nickname
+//   - URL
+//   - Timestamp Added (RFC3339)
+//   - Last Sync Time (RFC3339)
 func FormatUsersPlain(users []User) string {
 	if len(users) < 1 {
 		return ""

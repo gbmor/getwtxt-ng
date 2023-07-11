@@ -30,9 +30,10 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/gbmor/getwtxt-ng/common"
 	"github.com/gbmor/getwtxt-ng/registry"
-	log "github.com/sirupsen/logrus"
 )
 
 func addUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, dbConn *registry.DB, format APIFormat) {
@@ -269,15 +270,10 @@ func jsonAddUserHandler(w http.ResponseWriter, r *http.Request, conf *Config, db
 		return
 	}
 
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		response.Message = "Internal Server Error"
-		jsonResponseWrite(w, response, http.StatusInternalServerError)
-		return
-	}
+	bodyDecoder := json.NewDecoder(r.Body)
 
 	user := registry.User{}
-	if err := json.Unmarshal(bodyBytes, &user); err != nil {
+	if err := bodyDecoder.Decode(&user); err != nil {
 		log.Error(err)
 		response.Message = "Invalid Request Body"
 		jsonResponseWrite(w, response, http.StatusBadRequest)
@@ -543,25 +539,10 @@ func jsonDeleteUsersHandler(w http.ResponseWriter, r *http.Request, conf *Config
 	}
 	isAdmin := common.ValidatePass(pass, []byte(conf.ServerConfig.AdminPassword))
 
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		msg := MessageResponse{
-			Message: "500 Internal Server Error",
-		}
-		jsonResponseWrite(w, msg, http.StatusInternalServerError)
-		return
-	}
-
-	if len(bodyBytes) < 1 {
-		msg := MessageResponse{
-			Message: "400 Bad Request: No user(s) to delete",
-		}
-		jsonResponseWrite(w, msg, http.StatusBadRequest)
-		return
-	}
+	bodyDecoder := json.NewDecoder(r.Body)
 
 	users := make([]registry.User, 0, 2)
-	if err := json.Unmarshal(bodyBytes, &users); err != nil {
+	if err := bodyDecoder.Decode(&users); err != nil {
 		msg := MessageResponse{
 			Message: "400 Bad Request: Invalid request body",
 		}

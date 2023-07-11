@@ -29,9 +29,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/gbmor/getwtxt-ng/common"
 	"github.com/gbmor/getwtxt-ng/registry"
-	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {

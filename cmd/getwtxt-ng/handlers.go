@@ -23,10 +23,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gbmor/getwtxt-ng/common"
-	"github.com/gbmor/getwtxt-ng/registry"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/common"
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 type JSONResponse interface {

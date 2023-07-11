@@ -23,8 +23,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gbmor/getwtxt-ng/registry"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 func getTweetsHandler(w http.ResponseWriter, r *http.Request, dbConn *registry.DB, format APIFormat) {

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gbmor/getwtxt-ng/registry"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 func InitTicker(t time.Duration, dbConn *registry.DB) chan<- struct{} {

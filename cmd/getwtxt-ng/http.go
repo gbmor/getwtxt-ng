@@ -23,10 +23,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gbmor/getwtxt-ng/registry"
 	"github.com/gorilla/mux"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
+
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 type APIFormat string
