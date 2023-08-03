@@ -53,10 +53,13 @@ func main() {
 	}
 	log.SetOutput(conf.ServerConfig.MessageLogFd)
 
+	userAgent := fmt.Sprintf("getwtxt-ng/%s (+%s; @getwtxt-ng/registry-sync)", common.Version, conf.InstanceConfig.SiteURL)
+
 	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath,
 		conf.ServerConfig.EntriesPerPageMax,
 		conf.ServerConfig.EntriesPerPageMin,
 		nil,
+		userAgent,
 		log.StandardLogger())
 	if err != nil {
 		log.Errorf("Could not initialize database: %s", err)

@@ -51,8 +51,37 @@ type DB struct {
 	conn   *sql.DB
 }
 
+type RoundTripperWithHeader struct {
+	http.Header
+	rt http.RoundTripper
+}
+
+func NewRoundTripperWithHeader(rt http.RoundTripper) RoundTripperWithHeader {
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+
+	return RoundTripperWithHeader{
+		Header: make(http.Header),
+		rt:     rt,
+	}
+}
+
+func (rth RoundTripperWithHeader) RoundTrip(r *http.Request) (*http.Response, error) {
+	if len(rth.Header) == 0 {
+		return rth.rt.RoundTrip(r)
+	}
+
+	r = r.Clone(r.Context())
+	for k, v := range rth.Header {
+		r.Header[k] = v
+	}
+
+	return rth.rt.RoundTrip(r)
+}
+
 // InitSQLite initializes the registry's database, creating the appropriate tables if needed.
-func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client, logger *log.Logger) (*DB, error) {
+func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpClient *http.Client, userAgent string, logger *log.Logger) (*DB, error) {
 	shouldInit := dbPath == ":memory:"
 	if !shouldInit {
 		_, err := os.Stat(dbPath)
@@ -148,8 +177,11 @@ func InitSQLite(dbPath string, maxEntriesPerPage, minEntriesPerPage int, httpCli
 	}
 
 	if httpClient == nil {
+		rt := NewRoundTripperWithHeader(nil)
+		rt.Header.Set("User-Agent", userAgent)
 		httpClient = &http.Client{
-			Timeout: 5 * time.Second,
+			Timeout:   5 * time.Second,
+			Transport: rt,
 		}
 	}
 

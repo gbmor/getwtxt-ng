@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/gbmor/getwtxt-ng/registry"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/gbmor/getwtxt-ng/common"
+	"github.com/gbmor/getwtxt-ng/registry"
 )
 
 var flagConfig = flag.String("config", "getwtxt-ng.toml", "Path to getwtxt-ng's config file")
@@ -39,6 +41,10 @@ func main() {
 		ServerConfig struct {
 			DatabasePath string `toml:"database_path"`
 		} `toml:"server_config"`
+		InstanceInfo struct {
+			SiteURL  string `toml:"site_url"`
+			SiteName string `toml:"site_name"`
+		} `toml:"instance_info"`
 	}{}
 	if _, err := toml.Decode(string(confFile), &conf); err != nil {
 		fmt.Printf("Could not grab database path from getwtxt-ng config file at %s: %s\n", *flagConfig, err)
@@ -49,7 +55,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath, 10, 10, nil, log.StandardLogger())
+	userAgent := fmt.Sprintf("getwtxt-ng/%s (+%s; @getwtxt-ng/init-bulk-follow )", common.Version, conf.InstanceInfo.SiteURL)
+	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath, 10, 10, nil, userAgent, log.StandardLogger())
 	if err != nil {
 		fmt.Printf("Could not connect to database at %s: %s\n", conf.ServerConfig.DatabasePath, err)
 		os.Exit(1)
