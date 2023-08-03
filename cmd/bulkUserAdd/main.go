@@ -55,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	userAgent := fmt.Sprintf("getwtxt-ng/%s (+%s; @getwtxt-ng/init-bulk-follow )", common.Version, conf.InstanceInfo.SiteURL)
+	userAgent := fmt.Sprintf("getwtxt-ng/%s (+%s; @getwtxt-ng/init-bulk-follow)", common.Version, conf.InstanceInfo.SiteURL)
 	dbConn, err := registry.InitSQLite(conf.ServerConfig.DatabasePath, 10, 10, nil, userAgent, log.StandardLogger())
 	if err != nil {
 		fmt.Printf("Could not connect to database at %s: %s\n", conf.ServerConfig.DatabasePath, err)
